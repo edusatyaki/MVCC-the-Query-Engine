@@ -531,7 +531,8 @@ text{font-family:var(--hand)}
 .term-bar i:nth-child(2){background:#F7C948} .term-bar i:nth-child(3){background:#6FBF73}
 .term-bar span{margin-left:.35rem}
 .term pre{margin:0;padding:.45rem .65rem;font-family:var(--mono);font-size:.54rem;line-height:1.42;color:#EDE6D8;
-  white-space:pre;overflow:hidden}
+  white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden}
+.fit > .term{flex:0 0 auto}
 .term .pr{color:#8FC7FF;font-weight:700}
 .term .cm{color:#9E9382}
 .term .nw{color:#8FD6AE;font-weight:700}
@@ -1241,7 +1242,7 @@ function sceneCost(st){
 
 /* Volcano: calls go down, rows come up */
 function sceneVolcano(st){
-  const nodes = [['Limit (3)', 20], ['Sort (balance DESC)', 110], ['Seq Scan on accounts', 200]];
+  const nodes = [['Limit (3)', 20], ['Sort (balance DESC)', 110], ['Scan on accounts', 200]];
   let g = boxT(60, 20, 160, 60, 'client', '', {fill:'var(--pencil-soft)'});
   nodes.forEach((n,i)=> g += boxT(360, n[1], 300, 64, n[0], 'open() / next() / close()', {fs:17, ss:11}));
   g += `<path d="M220 50 H356" stroke="var(--ink)" stroke-width="2.2"/>`;
@@ -1267,7 +1268,7 @@ const XROWS = [
 function sceneExec(st, raw){
   let g = boxT(30, 40, 190, 54, 'Limit (3)', '', {fs:17, glow: st===1||st===3});
   g += boxT(30, 120, 190, 54, 'Sort', 'pipeline-breaker', {fs:17, ss:10, glow: st===2});
-  g += boxT(30, 200, 190, 54, 'Seq Scan', 'filter + MVCC check', {fs:17, ss:10, glow: st===2});
+  g += boxT(30, 200, 190, 54, 'Scan', 'filter + MVCC check', {fs:17, ss:10, glow: st===2});
   g += `<path d="M125 94 V120 M125 174 V200" stroke="var(--ink)" stroke-width="2.2"/>`;
   if(st >= 2 || raw){
     XROWS.forEach((r,i)=>{
@@ -1420,7 +1421,7 @@ function sceneAllPairs(){
 /* if every node built its full result first */
 function sceneMaterialize(){
   let g = boxT(40, 20, 170, 60, 'client', 'waiting for row 1...', {fill:'var(--pencil-soft)', ss:10});
-  [['Limit (3)', 20], ['Sort', 104], ['Seq Scan', 188]].forEach((n,i)=>{
+  [['Limit (3)', 20], ['Sort', 104], ['Scan', 188]].forEach((n,i)=>{
     g += boxT(330, n[1], 220, 60, n[0], '', {fs:17});
     g += `<rect x="580" y="${n[1]+6}" width="${360 - i*20}" height="48" rx="3" fill="var(--flame-soft)" stroke="var(--ink)" stroke-width="2" stroke-dasharray="7 5"/>
       <text x="${590}" y="${n[1]+36}" style="font-size:13px;fill:var(--flame-ink)">${i===0?'waits for Sort to finish':'holds its whole result: up to 1,000,000 rows'}</text>`;
@@ -1519,6 +1520,7 @@ const SOL = note => ({ph:'solve', note});
 /* two psql sessions side by side, drawn as terminal windows */
 const term = (title, body, cls='') => `<div class="term ${cls}"><div class="term-bar"><i></i><i></i><i></i><span>${title}</span></div><pre>${body}</pre></div>`;
 const terms = (a, b) => `<div class="terms">${a}${b}</div>`;
+const psql = (title, body, cls='') => term('psql: ' + title, body, cls);
 const PR  = '<span class="pr">neobank=#</span> ';
 const PRT = '<span class="pr">neobank=*#</span> ';
 const PRC  = '<span class="pr">neobank-#</span> ';    /* psql's prompt for a statement's next line */
@@ -1573,10 +1575,11 @@ const DECK = [
 
 { id:'neobank', kick:'one table, one story', eyebrow:'Our example', title:'NeoBank',
   tag:'setup', steps:[
-  {note:'Our table: accounts. Each row is one bank account with a number, a name, a balance and a branch. Row 101 is Asha\'s: 50,000 rupees in Pune. We will follow this row all lecture.'},
+  {note:'Our table: accounts. Each row is one bank account with a number, a name, a balance and a branch. The psql window shows the same table with SELECT star. Row 101 is Asha\'s: 50,000 rupees in Pune. We will follow this row all lecture.'},
   {note:'Two people. Asha reads: she checks her balance. Ravi writes: he is a bank clerk making a transfer.'}],
   body:(st)=>`
-    <div class="stage-row">${sceneTable(1)}</div>
+    <div class="stage-row" style="flex:0 0 auto;height:${st>=1?'34%':'44%'}">${sceneTable(1)}</div>
+    ${psql('our table', `${PR}SELECT * FROM accounts;\n${NEW(' acc_no | holder_name | balance | branch\n--------+-------------+---------+--------\n    100 | Kiran       |   72000 | Mumbai\n    101 | Asha        |   50000 | Pune\n    102 | Dev         |   18000 | Delhi\n(3 rows)')}`)}
     ${st>=1?`<div class="cards" style="grid-template-columns:1fr 1fr">
       ${card('The reader','Asha','Checks her balance.','tl','users','pop d1')}
       ${card('The writer','Ravi','A clerk making a transfer.','warn','bolt','pop d2')}</div>`:''}` },
@@ -1631,31 +1634,41 @@ const DECK = [
   steps:[
   P('Ravi is changing 50,000 to 40,000. Until he finishes, Asha still needs 50,000. Where is it kept?'),
   SEE('If Ravi simply writes over it, 50,000 is gone. Asha must wait, or see an unfinished 40,000.'),
-  SOL('The fix: an UPDATE never writes over the old row. It adds a new version, v2, next to it, and marks v1 as replaced. v1 is still there for Asha.')],
+  SOL('The fix: an UPDATE never writes over the old row. It adds a new version, v2, next to it, and marks v1 as replaced. v1 is still there for Asha.'),
+  SOL('See it in psql. ctid is the row\'s address inside the table. Before the UPDATE the row lives at (0,1); after it, at (0,2). A new address means a new version was added.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.appendonly) + `<div class="stage-row">${sceneOverwrite(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneOverwrite(1)}</div>`;
-    return `<div class="stage-row">${sceneHeap(1)}</div>
-      ${fix('<b>UPDATE adds a new version. It never writes over the old one.</b>')}`; } },
+    if(st===2) return `<div class="stage-row">${sceneHeap(1)}</div>
+      ${fix('<b>UPDATE adds a new version. It never writes over the old one.</b>')}`;
+    return psql('ctid is the row\'s address in the table', `${PR}SELECT ctid, balance FROM accounts WHERE acc_no = 101;
+${NEW(' ctid  | balance\n-------+---------\n (0,1) |   50000')}
+${PR}UPDATE accounts SET balance = 40000 WHERE acc_no = 101;
+UPDATE 1
+${PR}SELECT ctid, balance FROM accounts WHERE acc_no = 101;
+${NEW(' ctid  | balance\n-------+---------\n (0,2) |   40000')}      ${CM('-- a new address: a new version was added')}`)
+      + fix('Run it yourself: <code>SELECT ctid, * FROM accounts;</code> before and after an UPDATE.'); } },
 
 { id:'xminxmax', kick:'piece 2: a label on each version', eyebrow:'Keeping two versions', title:'Which version is which?',
   tag:'case', problem:'There are now two versions of Asha\'s row. How does the database know which one is which?',
   steps:[
   P('Two versions of the same row sit side by side. Asha has to pick one. How?'),
   SEE('Nothing on them says who made them, or which one is the latest.'),
-  SOL('The fix: every change gets a number, called a transaction ID. Each version carries two stickers. xmin: which transaction made it. xmax: which transaction replaced it, or 0 if it is still the latest.')],
+  SOL('The fix: every change gets a number, called a transaction ID. Each version carries two stickers. xmin: which transaction made it. xmax: which transaction replaced it, or 0 if it is still the latest. They are hidden columns, but you can ask for them by name, as the psql window shows.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.xminxmax) + `<div class="stage-row">${sceneWhich(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneWhich(1)}</div>`;
-    return `<div class="stage-row">${sceneHeader(1)}</div>
-      ${fix('Every version has two hidden stickers: <b>xmin</b> (made by) and <b>xmax</b> (replaced by).')}`; } },
+    return `<div class="stage-row" style="flex:0 0 auto;height:38%">${sceneHeader(1)}</div>`
+      + psql('the hidden stickers, asked for by name', `${PR}SELECT xmin, xmax, acc_no, balance FROM accounts;
+${NEW(' xmin | xmax | acc_no | balance\n------+------+--------+---------\n  500 |    0 |    100 |   72000\n  802 |    0 |    101 |   40000\n  500 |    0 |    102 |   18000')}      ${CM('-- xmin = made by, xmax = replaced by (0 = latest)')}`); } },
 
 { id:'rule', kick:'piece 3: a rule that picks', eyebrow:'Keeping two versions', title:'Can I see this version?',
   tag:'case', problem:'Each version has two stickers. What exact test decides if a person can see it?',
   steps:[
   P('Stickers are not enough. We need a simple yes-or-no test.'),
   SEE('Try these four versions. When this person started, transactions 500 and 802 had finished, and 905 was still running. Which versions can they see? Without a rule, it is guesswork.'),
-  SOL('The fix: two rules, and both must be true. Rule 1: the version was made by a transaction that had finished. Rule 2: it was not replaced by a transaction that had finished. Now the answers are clear: A yes, B no, C no, D yes.')],
+  SOL('The fix: two rules, and both must be true. Rule 1: the version was made by a transaction that had finished. Rule 2: it was not replaced by a transaction that had finished. Now the answers are clear: A yes, B no, C no, D yes.'),
+  SOL('Proof in psql. The pageinspect extension lets us look inside the table\'s page: it really holds both versions of row 101. But a normal SELECT returns only one. The rule picked it.')],
   body:(st)=>{
     const rows = (ans) => rowsTable(['Version','xmin (made by)','xmax (replaced by)','Can I see it?'],[
       ['A','500 (finished)','0', ans?'yes':'?'],
@@ -1664,15 +1677,29 @@ const DECK = [
       ['D','802 (finished)','905 (running)', ans?'yes':'?']], 9, '.6fr 1.2fr 1.2fr 1fr');
     if(st===0) return problemCard(SLIDE.rule) + `<div class="stage-row">${sceneRule(-1)}</div>`;
     if(st===1) return rows(false);
-    return `<div class="stage-row">${sceneRule(2)}</div><div class="pop">${rows(true)}</div>`; } },
+    if(st===2) return `<div class="stage-row">${sceneRule(2)}</div><div class="pop">${rows(true)}</div>`;
+    return psql('look inside the page with pageinspect', `${PR}CREATE EXTENSION pageinspect;      ${CM('-- lets us read a raw table page')}
+CREATE EXTENSION
+${PR}SELECT lp, t_xmin, t_xmax FROM heap_page_items(get_raw_page('accounts', 0));
+${NEW(' lp | t_xmin | t_xmax\n----+--------+--------\n  1 |    500 |    802\n  2 |    802 |      0')}      ${CM('-- the page holds BOTH versions')}
+${PR}SELECT balance FROM accounts WHERE acc_no = 101;
+${NEW(' balance\n---------\n   40000')}      ${CM('-- SELECT returns ONE: the rule picked v2')}`)
+      + fix('The table keeps every version. <b>The visibility rule decides which one you get.</b>'); } },
 
 { id:'trace', kick:'the three pieces together', eyebrow:'Keeping two versions', title:'Watch it work on Asha\'s row',
   tag:'case', problem:'Ravi changes Asha\'s row. What does Asha see before Ravi finishes, and after?',
   steps:[
   P('Transaction 802 is Ravi\'s change. It has made v2 with 40,000 and marked v1, but it has not finished.'),
   SOL('Asha checks now, as transaction 803. v1: replaced by 802, but 802 has not finished, so she can still see it. v2: made by 802, not finished, so she cannot. She sees 50,000.'),
-  SOL('Ravi finishes. Someone checks again, as transaction 804. Now v2 is visible, 40,000, and v1 is an old, dead version.')],
+  SOL('Ravi finishes. Someone checks again, as transaction 804. Now v2 is visible, 40,000, and v1 is an old, dead version.'),
+  SOL('The same story in two psql windows, moment by moment. Moment 1: Ravi\'s transaction gets number 802. Moment 2: he updates. Moment 3: Asha sees xmin 500, xmax 802, and 50,000. Moment 4: Ravi commits. Moment 5: Asha now sees xmin 802, xmax 0, and 40,000.')],
   body:(st)=>{
+    if(st===3) return timeline('psql: Ravi (T1)', 'psql: Asha (T2)', [
+      ['L', `${PR}BEGIN;\n${PRT}SELECT txid_current();\n${NEW(' txid_current\n--------------\n          802')}`],
+      ['L', `${PRT}UPDATE accounts SET balance = 40000 WHERE acc_no = 101;\nUPDATE 1`],
+      ['R', `${PR}SELECT xmin, xmax, balance FROM accounts WHERE acc_no = 101;\n${NEW(' xmin | xmax | balance\n  500 |  802 |   50000')}      ${CM('-- 802 not finished: old version')}`],
+      ['L', `${PRT}COMMIT;\nCOMMIT`],
+      ['R', `${PR}SELECT xmin, xmax, balance FROM accounts WHERE acc_no = 101;\n${NEW(' xmin | xmax | balance\n  802 |    0 |   40000')}      ${CM('-- 802 finished: new version')}`]]);
     const k = st===0 ? 1 : st+1;
     return `${st===0?problemCard(SLIDE.trace):''}
       <div class="stage-row" style="flex:0 0 auto">${sceneTuples(TRACE[k], k, true)}</div>
@@ -1684,49 +1711,64 @@ const DECK = [
   steps:[
   P('A report starts counting accounts. Three exist. Halfway through, Ravi deletes account 102.'),
   SEE('If DELETE removed the row at once, the report would miss it and say 2, even though 3 existed when it started.'),
-  SOL('The fix: DELETE does not remove anything. It only puts Ravi\'s transaction number, 910, on the xmax sticker. The report started earlier, so it still sees account 102 and correctly counts 3.')],
+  SOL('The fix: DELETE does not remove anything. It only puts Ravi\'s transaction number, 910, on the xmax sticker. The report started earlier, so it still sees account 102 and correctly counts 3.'),
+  SOL('In psql. The report uses REPEATABLE READ, so it keeps one photo for its whole transaction. It counts 3, Ravi deletes 102 in his window, and the report still counts 3. Ravi, with a fresh photo, counts 2.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.delete) + `<div class="stage-row">${sceneDeleteBad(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneDeleteBad(2)}</div>`;
-    return `<div class="stage-row">${sceneDelete(2)}</div>
-      ${fix('<b>DELETE only marks the row.</b> People who started earlier can still see it.')}`; } },
+    if(st===2) return `<div class="stage-row">${sceneDelete(2)}</div>
+      ${fix('<b>DELETE only marks the row.</b> People who started earlier can still see it.')}`;
+    return timeline('psql: the report (T1)', 'psql: Ravi (T2)', [
+      ['L', `${PR}BEGIN ISOLATION LEVEL REPEATABLE READ;      ${CM('-- one photo for the whole report')}\nBEGIN`],
+      ['L', `${PRT}SELECT count(*) FROM accounts;\n${NEW(' count\n-------\n     3')}`],
+      ['R', `${PR}DELETE FROM accounts WHERE acc_no = 102;\nDELETE 1`],
+      ['L', `${PRT}SELECT count(*) FROM accounts;\n${NEW(' count\n-------\n     3')}      ${CM('-- still 3: same photo')}`],
+      ['R', `${PR}SELECT count(*) FROM accounts;\n${NEW(' count\n-------\n     2')}      ${CM('-- a new photo: 102 is gone')}`]]); } },
 
 { id:'rollback', kick:'a free lunch', eyebrow:'Deleting, undoing, cleaning', title:'Cancelling a change',
   tag:'case', problem:'Ravi\'s transfer fails halfway and is cancelled (ROLLBACK). How is his change undone?',
   steps:[
   P('Transaction 900 changes Asha\'s balance, then fails. The change must be cancelled.'),
   SEE('In a system that writes over old values, cancelling means copying every old value back, one by one. Big changes take a long time to undo.'),
-  SOL('The fix in PostgreSQL: transaction 900 is just marked "cancelled". Its new version is ignored by everyone, and the old one is still there. Nothing has to be copied back.')],
+  SOL('The fix in PostgreSQL: transaction 900 is just marked "cancelled". Its new version is ignored by everyone, and the old one is still there. Nothing has to be copied back. In psql: BEGIN, UPDATE, ROLLBACK, and the balance is back to 40,000 at once.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.rollback) + `<div class="stage-row">${sceneRollback(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneUndo(1)}</div>`;
-    return `<div class="stage-row">${sceneRollback(2)}</div>
-      ${fix('<b>Cancelling is almost free:</b> the new version is simply ignored.')}`; } },
+    return `<div class="stage-row" style="flex:0 0 auto;height:40%">${sceneRollback(2)}</div>`
+      + psql('cancel a change', `${PR}BEGIN;
+${PRT}UPDATE accounts SET balance = 45000 WHERE acc_no = 101;
+UPDATE 1
+${PRT}ROLLBACK;      ${CM('-- cancel')}
+ROLLBACK
+${PR}SELECT balance FROM accounts WHERE acc_no = 101;
+${NEW(' balance\n---------\n   40000')}      ${CM('-- the old value, instantly: nothing was copied back')}`); } },
 
 { id:'vacuum', kick:'the cleaner', eyebrow:'Deleting, undoing, cleaning', title:'Who cleans up old versions?',
   tag:'case', problem:'Every change leaves an old version behind. Who removes them, and when is it safe?',
   steps:[
-  P('Red boxes are old, dead versions. They take up space. Something has to clean them up.'),
+  P('Red boxes are old, dead versions. They take up space. Something has to clean them up. PostgreSQL counts them: n_dead_tup.'),
   SEE('But careful: a long report that started earlier may still need some of them. Throw those away and the report breaks.'),
-  SOL('The fix: VACUUM, the cleaner. It removes an old version only when nobody running can still need it. The freed space is reused; the file does not shrink. It also runs automatically in the background, as autovacuum.')],
+  SOL('The fix: VACUUM, the cleaner. It removes an old version only when nobody running can still need it. In psql: 9 dead versions before, VACUUM, 3 left, the ones the report still needs. It also runs automatically, as autovacuum.')],
   body:(st)=>{
-    if(st===0) return problemCard(SLIDE.vacuum) + `<div class="stage-row">${sceneVacuum(0)}</div>`;
+    const count = (live, dead, note) => `${PR}SELECT n_live_tup, n_dead_tup FROM pg_stat_user_tables WHERE relname = 'accounts';\n${NEW(` n_live_tup | n_dead_tup\n------------+------------\n         15 |          ${dead}`)}${note?'      '+CM(note):''}`;
+    if(st===0) return problemCard(SLIDE.vacuum) + `<div class="stage-row">${sceneVacuum(0)}</div>` + psql('count the dead versions', count(15, 9, '-- 9 dead versions waiting'));
     if(st===1) return `<div class="stage-row">${sceneVacuum(1)}</div>`;
-    return `<div class="stage-row">${sceneVacuum(2)}</div>
-      ${fix('<b>VACUUM</b> removes old versions that nobody can still see, and reuses the space.')}`; } },
+    return `<div class="stage-row" style="flex:0 0 auto;height:30%">${sceneVacuum(2)}</div>`
+      + psql('run the cleaner', `${count(15, 9)}\n${PR}VACUUM accounts;\nVACUUM\n${count(15, 3, '-- 3 left: the long report still needs them')}`); } },
 
 { id:'bloat', kick:'the price', eyebrow:'Deleting, undoing, cleaning', title:'Changing every row at once',
   tag:'case', problem:'Every night, a job adds interest to all 1,000,000 accounts. What happens to the table?',
   steps:[
   P('One million accounts. Tonight a job changes every single one.'),
-  SEE('Each change adds a new version, so the table now holds two million versions, half of them dead. It is twice as big, and reading it takes twice as long. This is called bloat.'),
-  SOL('The fix: keep the cleaner running often. Autovacuum cleans up whenever dead versions pass a limit; a lower limit means small, frequent clean-ups. VACUUM ANALYZE also refreshes statistics, which we need in Part 2.')],
+  SEE('Each change adds a new version, so the table now holds two million versions, half of them dead. In psql, the table grows from 94 MB to 188 MB. Reading it takes twice as long. This is called bloat.'),
+  SOL('The fix: keep the cleaner running often. Autovacuum cleans up whenever dead versions pass a limit. In psql we lower that limit for this table with ALTER TABLE, and VACUUM ANALYZE cleans up and refreshes statistics, which we need in Part 2.')],
   body:(st)=>{
+    const size = v => `${PR}SELECT pg_size_pretty(pg_relation_size('accounts'));\n${NEW(` pg_size_pretty\n----------------\n ${v}`)}`;
     if(st===0) return problemCard(SLIDE.bloat) + `<div class="stage-row">${sceneBloat(0)}</div>`;
-    if(st===1) return `<div class="stage-row">${sceneBloat(1)}</div>
-      ${fix('Twice the size means <b>twice the reading</b>, and half the useful data in memory.')}`;
-    return `<div class="stage-row">${sceneSaw(1)}</div>
-      ${fix('Clean often, in small batches: <b>autovacuum</b>. And <code>VACUUM ANALYZE</code> refreshes the statistics.')}`; } },
+    if(st===1) return `<div class="stage-row" style="flex:0 0 auto;height:34%">${sceneBloat(1)}</div>`
+      + psql('the nightly interest job', `${size('94 MB')}\n${PR}UPDATE accounts SET balance = balance * 1.01;      ${CM('-- add 1% interest to every account')}\nUPDATE 1000000\n${size('188 MB')}      ${CM('-- twice the size: bloat')}`);
+    return `<div class="stage-row" style="flex:0 0 auto;height:34%">${sceneSaw(1)}</div>`
+      + psql('clean often, in small batches', `${PR}ALTER TABLE accounts SET (autovacuum_vacuum_scale_factor = 0.02);      ${CM('-- clean after 2% of rows change')}\nALTER TABLE\n${PR}VACUUM ANALYZE accounts;      ${CM('-- clean up + refresh statistics')}\nVACUUM`); } },
 
 { id:'advantages', kick:'was it worth it?', eyebrow:'Summing up Part 1', title:'What we gained',
   tag:'summary', steps:[
@@ -1743,14 +1785,19 @@ const DECK = [
   tag:'case', problem:'PostgreSQL keeps old versions inside the table, so the table grows. Is there another way?',
   steps:[
   P('PostgreSQL keeps old versions in the table itself. That is why we need the cleaner.'),
-  SOL('Oracle does it differently. It writes the new value straight into the row, and moves the old value to a separate area called undo. Cancelling is slower there, but the table does not bloat. If undo space runs out while a long report still needs it, the report fails with "snapshot too old".')],
+  SOL('Oracle does it differently. It writes the new value straight into the row, and moves the old value to a separate area called undo. Cancelling is slower there, but the table does not bloat.'),
+  SOL('What each one\'s typical trouble looks like at the prompt. In PostgreSQL: dead versions piling up until VACUUM runs. In Oracle: a long report fails with ORA-01555, snapshot too old, because the undo it needed was reused.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.oracle) + `<div class="stage-row">${sceneOracle(0)}</div>`;
-    return `<div class="stage-row" style="flex:0 0 auto;height:40%">${sceneOracle(1)}</div>
+    if(st===1) return `<div class="stage-row" style="flex:0 0 auto;height:40%">${sceneOracle(1)}</div>
       ${rowsTable(['','PostgreSQL','Oracle'],[
         ['Old versions','stay in the table','move to an undo area'],
         ['Cancelling','almost free','copy old values back'],
-        ['Typical trouble','table bloat','"snapshot too old"']], 9, '1fr 1.3fr 1.3fr')}`; } },
+        ['Typical trouble','table bloat','"snapshot too old"']], 9, '1fr 1.3fr 1.3fr')}`;
+    return terms(
+      term('psql: PostgreSQL', `${PR}SELECT n_dead_tup FROM pg_stat_user_tables WHERE relname = 'accounts';\n${NEW(' n_dead_tup\n------------\n    1000000')}      ${CM('-- bloat, until VACUUM runs')}`),
+      term('SQL*Plus: Oracle', `<span class="pr">SQL&gt;</span> SELECT SUM(balance) FROM accounts;\n<span class="wt">ORA-01555: snapshot too old</span>\n${CM('-- the undo this report needed was reused')}`, 'bad'))
+      + fix('<b>PostgreSQL</b> pays with bloat and VACUUM. <b>Oracle</b> pays with slower cancels and "snapshot too old".'); } },
 
 /* ------------------------------ chapter 5 ------------------------------ */
 { id:'pipeline', kick:'the map for Part 2', eyebrow:'Part 2', title:'Four steps inside the database',
@@ -1774,27 +1821,31 @@ const DECK = [
   steps:[
   P('To the database, a query arrives as a line of letters. Here are two suspects. Which one is broken?'),
   SOL('Step one, split the line into words, called tokens: keywords like SELECT, names like accounts, symbols like =, and values like 100000.'),
-  SOL('Step two, arrange the words into a tree using the grammar rules of SQL. The parser only checks grammar, not meaning. So "SELECT unicorn FROM narnia" passes, even though no such table exists. "SELECT * FORM accounts" fails: FORM is not a SQL word.')],
+  SOL('Step two, arrange the words into a tree using the grammar rules of SQL. The parser only checks grammar, not meaning. In psql: SELECT * FORM accounts is stopped by the parser with a syntax error. SELECT unicorn FROM narnia gets past the parser; it only fails later, in the next step, because the table does not exist.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.parser) + `<div class="cards" style="grid-template-columns:1fr 1fr">
         ${card('Suspect 1','<code>SELECT unicorn FROM narnia;</code>','Valid or not?','pp','','pop d1')}
         ${card('Suspect 2','<code>SELECT * FORM accounts;</code>','Valid or not?','pp','','pop d2')}</div>`;
     if(st===1) return tokenChips(0);
-    return `<div class="stage-row" style="flex:0 0 auto;height:48%">${sceneTree(3)}</div>
-      <div class="cards" style="grid-template-columns:1fr 1fr">
-        ${card('Passes','<code>SELECT unicorn FROM narnia;</code>','The grammar is fine. The parser does not check if tables exist.','good','','pop d1')}
-        ${card('Fails here','<code>SELECT * FORM accounts;</code>','FORM is not a SQL word: syntax error.','warn','','pop d2')}</div>`; } },
+    return `<div class="stage-row" style="flex:0 0 auto;height:42%">${sceneTree(3)}</div>`
+      + psql('the parser at work', `${PR}SELECT * FORM accounts;
+<span class="wt">ERROR:  syntax error at or near "FORM"</span>      ${CM('-- stopped by the PARSER: bad grammar')}
+${PR}SELECT unicorn FROM narnia;
+<span class="wt">ERROR:  relation "narnia" does not exist</span>      ${CM('-- grammar is fine: it fails later, in the analyzer')}`); } },
 
 { id:'analyzer', kick:'step 2: meaning', eyebrow:'Reading your query', title:'Does it make sense?',
   tag:'case', problem:'The grammar is fine. But does the table exist, do the values fit, and is this person allowed to read it?',
   steps:[
-  P('These three queries have perfect grammar, but all three are wrong.'),
-  SOL('The analyzer checks each name against the database\'s own list of tables, called the catalog. Does the table exist? Do the columns and types fit? Is this user allowed? Is it a view? Each check has its own error message.')],
+  P('These three queries have perfect grammar, but psql rejects all three. Read the three error messages.'),
+  SOL('The analyzer checks each name against the database\'s own list of tables, called the catalog. Does the table exist? Do the columns and types fit? Is this user allowed? Is it a view? Each check gives the error message we just saw.')],
   body:(st)=>{
-    if(st===0) return problemCard(SLIDE.analyzer) + `<div class="cards" style="grid-template-columns:repeat(3,1fr)">
-        ${card('Wrong table','<code>FROM acounts</code>','There is no such table.','warn','','pop d1')}
-        ${card('Wrong type','<code>branch &gt; 100000</code>','branch is text, not a number.','warn','','pop d2')}
-        ${card('Not allowed','<code>SET ROLE intern</code>','An intern may not read accounts.','warn','','pop d3')}</div>`;
+    if(st===0) return problemCard(SLIDE.analyzer) + psql('good grammar, wrong meaning', `${PR}SELECT * FROM acounts;
+<span class="wt">ERROR:  relation "acounts" does not exist</span>      ${CM('-- no such table')}
+${PR}SELECT * FROM accounts WHERE branch &gt; 100000;
+<span class="wt">ERROR:  operator does not exist: text &gt; integer</span>      ${CM('-- branch is text, not a number')}
+${PR}SET ROLE intern;
+<span class="pr">neobank=&gt;</span> SELECT * FROM accounts;
+<span class="wt">ERROR:  permission denied for table accounts</span>      ${CM('-- an intern may not read accounts')}`);
     return `<div class="stage-row">${sceneCatalog(4)}</div>
       ${fix('Mistakes are caught in order: <b>grammar</b> (parser), then <b>does it exist</b>, then <b>are you allowed</b> (analyzer).')}`; } },
 
@@ -1802,7 +1853,8 @@ const DECK = [
   tag:'case', problem:'pune_hnw is a view: a saved query with no data of its own. So what does the database read?',
   steps:[
   P('Someone selects from pune_hnw. But pune_hnw is a view: a saved query, not a table. It holds no rows.'),
-  SOL('The fix: the database swaps the view\'s name for the saved query inside it. The result is our normal query on the real accounts table. After this, the database never even knows a view was used.')],
+  SOL('The fix: the database swaps the view\'s name for the saved query inside it. The result is our normal query on the real accounts table.'),
+  SOL('Proof in psql: EXPLAIN shows the plan. We asked for pune_hnw, but the plan reads accounts, with the view\'s filter. The planner never even knows a view was used.')],
   body:(st)=>{
     const code = sql(`${K('CREATE VIEW')} pune_hnw ${K('AS')}
   ${K('SELECT')} * ${K('FROM')} accounts
@@ -1810,9 +1862,11 @@ const DECK = [
      ${K('AND')} balance &gt; ${S('100000')};
 
 ${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`);
+    if(st===2) return psql('what the database really runs', `${PR}EXPLAIN SELECT holder_name FROM pune_hnw;
+${NEW(" Bitmap Heap Scan on accounts\n   Recheck Cond: (branch = 'Pune'::text)\n   Filter: (balance &gt; '100000'::numeric)")}      ${CM('-- it reads accounts, not the view')}`)
+      + fix('A view is a <b>saved query</b>. It is swapped for the real table before anything runs.');
     return `<div style="display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:1rem;align-items:center">
-      ${st===0?problemCard(SLIDE.rewriter):code}<div class="stage-row">${sceneView(st===0?-1:2)}</div></div>
-      ${st===1?fix('A view is a <b>saved query</b>. It is swapped for the real table before anything runs.'):''}`; } },
+      ${st===0?problemCard(SLIDE.rewriter):code}<div class="stage-row">${sceneView(st===0?-1:2)}</div></div>`; } },
 
 /* ------------------------------ chapter 6 ------------------------------ */
 { id:'costphil', kick:'no fixed rules', eyebrow:'Choosing the fastest way', title:'Is an index always faster?',
@@ -1820,75 +1874,98 @@ ${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`);
   steps:[
   P('There is an index on branch, like the index at the back of a book. Is using it always faster?'),
   SEE('Imagine 99% of accounts were in Pune. Using the index means jumping to a new page for almost every row: about 990,000 jumps. Just reading the whole table once, in order, is much faster.'),
-  SOL('The fix: no fixed rules. The database estimates the cost of each way and picks the cheapest. To estimate, it needs to know what the data looks like: statistics.')],
+  SOL('The fix: no fixed rules. The database estimates the cost of each way and picks the cheapest. In psql, EXPLAIN shows it: even with an index on branch, it chooses a Seq Scan, a plain read of the whole table. To estimate, it needs statistics.')],
   body:(st)=>{
-    if(st===0) return problemCard(SLIDE.costphil);
+    if(st===0) return problemCard(SLIDE.costphil) + psql('an index on branch', `${PR}CREATE INDEX accounts_branch_idx ON accounts (branch);\nCREATE INDEX`);
     if(st===1) return `<div class="stage-row">${sceneDots()}</div>`;
-    return `<div class="stage-row" style="flex:0 0 auto;height:48%">${sceneDots()}</div>
-      ${fix('<b>Estimate the cost of each way, pick the cheapest.</b> That needs statistics about the data.')}`; } },
+    return `<div class="stage-row" style="flex:0 0 auto;height:40%">${sceneDots()}</div>`
+      + psql('if 99% of accounts were in Pune', `${PR}EXPLAIN SELECT * FROM accounts WHERE branch = 'Pune';
+${NEW(" Seq Scan on accounts  (cost=0.00..24500.00 rows=990000 width=36)\n   Filter: (branch = 'Pune'::text)")}      ${CM('-- the index is ignored: reading everything is cheaper')}`); } },
 
 { id:'stats', kick:'counting before running', eyebrow:'Choosing the fastest way', title:'How many rows will match?',
   tag:'case', problem:'To pick the fastest way, the database must guess how many rows match, before running anything. How?',
   steps:[
   P('The cost of every plan depends on how many rows match. The database needs that number before it runs anything.'),
   SEE('Without information, it only knows the table has one million rows. Pune? Above 100,000? No idea.'),
-  SOL('The fix: ANALYZE looks at a sample of rows and saves statistics. 30% of accounts are in Pune. 5% of balances are above 100,000. So: one million times 0.30 times 0.05 is about 15,000 rows.')],
+  SOL('The fix: ANALYZE looks at a sample of rows and saves statistics. 30% of accounts are in Pune. 5% of balances are above 100,000. So: one million times 0.30 times 0.05 is about 15,000 rows.'),
+  SOL('Where the numbers live, in psql. pg_class keeps the row and page counts. pg_stats keeps the most common values of each column and how often they appear: Pune, 30%.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.stats);
     if(st===1) return `<div class="stage-row">${sceneFunnel(0, true)}</div>`;
-    return `<div class="stage-row">${sceneFunnel(0)}</div>
-      ${fix('From statistics: <b>1,000,000 x 0.30 x 0.05 = about 15,000 rows</b>.')}`; } },
+    if(st===2) return `<div class="stage-row">${sceneFunnel(0)}</div>
+      ${fix('From statistics: <b>1,000,000 x 0.30 x 0.05 = about 15,000 rows</b>.')}`;
+    return psql('the statistics ANALYZE saved', `${PR}ANALYZE accounts;
+ANALYZE
+${PR}SELECT reltuples, relpages FROM pg_class WHERE relname = 'accounts';
+${NEW(' reltuples | relpages\n-----------+----------\n     1e+06 |    12000')}      ${CM('-- 1 million rows in 12,000 pages')}
+${PR}SELECT most_common_vals, most_common_freqs FROM pg_stats
+<span class="pr">neobank-#</span>   WHERE tablename = 'accounts' AND attname = 'branch';
+${NEW(' most_common_vals       | most_common_freqs\n------------------------+-------------------\n {Pune,Mumbai,Delhi,...} | {0.3,0.12,0.08,...}')}      ${CM('-- Pune: 30% of rows')}`); } },
 
 { id:'scans', kick:'three ways to read', eyebrow:'Choosing the fastest way', title:'Which way to read the table?',
   tag:'case', problem:'About 15,000 matching rows are spread across 12,000 pages. What is the fastest way to get them?',
   steps:[
   P('Our 15,000 matching rows are spread all over the table.'),
-  SOL('Way 1, read everything: go through every page, first to last. Best when most rows match, or the table is small.'),
-  SOL('Way 2, use the index: look up each match, then jump to its page. Best when only a few rows match, like one account number.'),
-  SOL('Way 3, the middle path: first list all the pages that have matches, then visit those pages in order, once each. Best for a medium number of matches, like our 15,000.')],
+  SOL('Way 1, read everything: go through every page, first to last. EXPLAIN calls it Seq Scan. Best when most rows match, or the table is small.'),
+  SOL('Way 2, use the index: look up each match, then jump to its page. EXPLAIN calls it Index Scan. Best when only a few rows match, like one account number.'),
+  SOL('Way 3, the middle path: first list all the pages that have matches, then visit those pages in order, once each. EXPLAIN calls it Bitmap Heap Scan. Best for a medium number of matches, like our 15,000.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.scans) + `<div class="stage-row">${sceneScatter()}</div>`;
     const k = [0,1,3][st-1];
     const c = [['Way 1: Sequential Scan','Read every page. Best when most rows match.','tl'],
                ['Way 2: Index Scan','Look up, then jump to each page. Best when few rows match.','pp'],
                ['Way 3: Bitmap Scan','List the pages first, then visit them in order. Best for our 15,000.','good']][st-1];
-    return `<div class="stage-row">${sceneScanKind(k)}</div>
-      <div class="cards">${card('Option '+st+' of 3', c[0], c[1], c[2], '', 'pop')}</div>`; } },
+    const q = [
+      [`${PR}EXPLAIN SELECT * FROM accounts;`, ' Seq Scan on accounts  (cost=0.00..22000.00 rows=1000000 width=36)'],
+      [`${PR}EXPLAIN SELECT * FROM accounts WHERE acc_no = 101;`, ' Index Scan using accounts_pkey on accounts  (cost=0.42..8.44 rows=1 width=36)\n   Index Cond: (acc_no = 101)'],
+      [`${PR}EXPLAIN SELECT holder_name, balance FROM accounts\n<span class="pr">neobank-#</span>   WHERE branch = 'Pune' AND balance &gt; 100000;`, " Bitmap Heap Scan on accounts  (cost=180.20..9014.50 rows=15000 width=36)\n   Recheck Cond: (branch = 'Pune'::text)\n   Filter: (balance &gt; '100000'::numeric)\n   -&gt;  Bitmap Index Scan on accounts_branch_idx"]][st-1];
+    return `<div class="stage-row" style="flex:0 0 auto;height:${st===3?'32%':'36%'}">${sceneScanKind(k)}</div>
+      <div class="cards">${card('Option '+st+' of 3', c[0], c[1], c[2], '', 'pop')}</div>
+      ${psql('EXPLAIN shows which way it chose', `${q[0]}\n${NEW(q[1])}`)}`; } },
 
 { id:'joins', kick:'matching two tables', eyebrow:'Choosing the fastest way', title:'Which way to join?',
   tag:'case', problem:'Match each Pune account with its transactions from a second table. Comparing every pair would take forever. What else can we do?',
   steps:[
-  P('A second table lists every transaction. We want each Pune account with its transactions. Comparing every account with every transaction means billions of comparisons.'),
+  P('A second table, transactions, lists every transaction. The query joins it to accounts. Comparing every account with every transaction means billions of comparisons.'),
   SOL('Way 1, nested loop: for each account, look up its transactions using an index. Best when there are only a few accounts.'),
   SOL('Way 2, hash join: put one table into a quick-lookup table in memory, then go through the other once. Best for big tables.'),
   SOL('Way 3, merge join: sort both lists by account number, then walk down them together, like zipping a zip. Best when both are already sorted.')],
   body:(st)=>{
-    if(st===0) return problemCard(SLIDE.joins) + `<div class="stage-row">${sceneAllPairs()}</div>`;
+    if(st===0) return problemCard(SLIDE.joins) + psql('the join query', `${PR}SELECT a.holder_name, t.amount
+<span class="pr">neobank-#</span>   FROM accounts a JOIN transactions t ON t.acc_no = a.acc_no
+<span class="pr">neobank-#</span>   WHERE a.branch = 'Pune';`) + `<div class="stage-row">${sceneAllPairs()}</div>`;
     const c = [['Way 1: Nested Loop','For each account, look up its transactions by index. Few accounts.','tl'],
                ['Way 2: Hash Join','Build a quick-lookup table, then scan the other once. Big tables.','pp'],
                ['Way 3: Merge Join','Sort both, then zip them together. Already sorted.','good']][st-1];
-    return `<div class="stage-row">${sceneJoin(st-1)}</div>
-      <div class="cards">${card('Option '+st+' of 3', c[0], c[1], c[2], '', 'pop')}</div>`; } },
+    const plan = [' Nested Loop\n   -&gt;  Index Scan using accounts_pkey on accounts a\n   -&gt;  Index Scan using transactions_acc_no_idx on transactions t',
+                  ' Hash Join\n   Hash Cond: (t.acc_no = a.acc_no)\n   -&gt;  Seq Scan on transactions t\n   -&gt;  Hash  -&gt;  Seq Scan on accounts a',
+                  ' Merge Join\n   Merge Cond: (a.acc_no = t.acc_no)\n   -&gt;  Index Scan using accounts_pkey on accounts a\n   -&gt;  Index Scan using transactions_acc_no_idx on transactions t'][st-1];
+    return `<div class="stage-row" style="flex:0 0 auto;height:34%">${sceneJoin(st-1)}</div>
+      <div class="cards">${card('Option '+st+' of 3', c[0], c[1], c[2], '', 'pop')}</div>
+      ${psql('EXPLAIN shows the join it picked', `${PR}EXPLAIN SELECT ...;      ${CM('-- the join query above')}\n${NEW(plan)}`)}`; } },
 
 { id:'decision', kick:'the cheapest wins', eyebrow:'Choosing the fastest way', title:'Pick the winner',
   tag:'case', problem:'Three ways can answer our query. Which one does the database choose?',
   steps:[
   P('Three candidate ways. The database gives each a cost score. Lower is better.'),
-  SOL('Reading everything costs about 22,000. Using the index costs 60,000 or more, because of 15,000 random jumps. The middle path, the bitmap scan, costs about 9,000. It wins. The "obvious" index lost, because the statistics said 30% of accounts are in Pune. EXPLAIN shows this choice.')],
+  SOL('Reading everything costs about 22,000. Using the index costs 60,000 or more, because of 15,000 random jumps. The middle path, the bitmap scan, costs about 9,000. It wins. In psql, EXPLAIN shows exactly this: Bitmap Heap Scan, cost 9014.50, about 15,000 rows, the numbers we worked out.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.decision) + `<div class="stage-row">${sceneCost(0)}</div>`;
-    return `<div class="stage-row">${sceneCost(3)}</div>
-      ${fix('<b>Bitmap scan wins at about 9,000.</b> Type <code>EXPLAIN</code> before a query to see the plan the database picked.')}`; } },
+    return `<div class="stage-row" style="flex:0 0 auto;height:40%">${sceneCost(3)}</div>`
+      + psql('EXPLAIN: the plan the database picked', `${PR}EXPLAIN SELECT holder_name, balance FROM accounts WHERE branch = 'Pune' AND balance &gt; 100000;
+${NEW(" Bitmap Heap Scan on accounts  (cost=180.20..9014.50 rows=15000 width=36)\n   Recheck Cond: (branch = 'Pune'::text)\n   Filter: (balance &gt; '100000'::numeric)\n   -&gt;  Bitmap Index Scan on accounts_branch_idx  (cost=0.00..176.45 rows=300000 width=0)")}`); } },
 
 /* ------------------------------ chapter 7 ------------------------------ */
 { id:'volcano', kick:'one row at a time', eyebrow:'Running the plan', title:'How do rows move through the plan?',
   tag:'case', problem:'If every step finished all its work before passing it on, you would wait a long time and memory would fill up. How does the database avoid that?',
   steps:[
-  P('The plan is a stack of steps: Limit on top of Sort on top of Scan. How do rows move through it?'),
+  P('The plan is a stack of steps: Limit on top of Sort on top of a Scan. EXPLAIN prints exactly this stack, top to bottom.'),
   SEE('The slow way: each step finishes everything, then hands over a huge pile. The user waits, and memory fills with a million rows.'),
   SOL('The fix: the top step asks the one below for just one row, with next(). That request passes down, and one row comes back up. Rows flow like a relay race. The first rows arrive quickly, and memory stays small. Only sorting must see everything first.')],
   body:(st)=>{
-    if(st===0) return problemCard(SLIDE.volcano) + `<div class="stage-row">${sceneVolcano(0)}</div>`;
+    if(st===0) return problemCard(SLIDE.volcano) + psql('the plan is a stack of steps', `${PR}EXPLAIN SELECT holder_name, balance FROM accounts
+<span class="pr">neobank-#</span>   WHERE branch = 'Pune' AND balance &gt; 100000 ORDER BY balance DESC LIMIT 3;
+${NEW(" Limit\n   -&gt;  Sort\n         Sort Key: balance DESC\n         -&gt;  Bitmap Heap Scan on accounts\n               Recheck Cond: (branch = 'Pune'::text)")}      ${CM('-- read it top to bottom: Limit, Sort, Scan')}`);
     if(st===1) return `<div class="stage-row">${sceneMaterialize()}</div>`;
     return `<div class="stage-row">${sceneVolcano(1)}</div>
       ${fix('Ask for <b>one row at a time</b>: fast first rows, little memory. (Sorting is the exception: it must see all rows first.)')}`; } },
@@ -1898,12 +1975,18 @@ ${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`);
   steps:[
   P('Our query, sorted by balance, top 3 only. The plan: Limit, on Sort, on Scan.'),
   SEE('The scan will find eight rows. One was deleted by a finished transaction. One was added by a transaction that has not finished. Some are not in Pune, or have too little money.'),
-  SOL('The scan checks every row twice: does it match the query, and can this person see it (the rule from Part 1)? Kiran\'s deleted row and Arjun\'s unfinished row are hidden. Sort orders the four that are left, and Limit returns the top 3: Nisha, Meera, Rohan. This is where Part 1 and Part 2 meet.')],
+  SOL('The scan checks every row twice: does it match the query, and can this person see it (the rule from Part 1)? Kiran\'s deleted row and Arjun\'s unfinished row are hidden. Sort orders the four that are left, and Limit returns the top 3.'),
+  SOL('And here is what the user actually sees in psql: Nisha, Meera and Rohan. No Kiran, no Arjun. This is where Part 1 and Part 2 meet.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.exectrace) + `<div class="stage-row">${sceneExec(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneExec(0, true)}</div>`;
-    return `<div class="stage-row">${sceneExec(3)}</div>
-      ${fix('Every row the scan reads goes through the <b>visibility rule from Part 1</b>. Here the two halves meet.')}`; } },
+    if(st===2) return `<div class="stage-row">${sceneExec(3)}</div>
+      ${fix('Every row the scan reads goes through the <b>visibility rule from Part 1</b>.')}`;
+    return psql('the answer the user gets', `${PR}SELECT holder_name, balance FROM accounts
+<span class="pr">neobank-#</span>   WHERE branch = 'Pune' AND balance &gt; 100000
+<span class="pr">neobank-#</span>   ORDER BY balance DESC LIMIT 3;
+${NEW(' holder_name | balance\n-------------+---------\n Nisha       |  410000\n Meera       |  180000\n Rohan       |  125000\n(3 rows)')}      ${CM('-- Kiran (deleted) and Arjun (not finished) are hidden')}`)
+      + fix('The executor applied the <b>MVCC rule</b> to every row. Here the two halves meet.'); } },
 
 { id:'wrap', kick:'the whole journey', eyebrow:'Wrap-up', title:'What happened to our query',
   tag:'recap', steps:[

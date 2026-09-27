@@ -34,12 +34,11 @@ The whole deck runs on the arrow keys.
 | `+` / `-` / `0` | type size, for the room you are in |
 | `Home` / `End` | first / last slide |
 
-37 slides, 88 pages, 21 cases: sized for a 90-minute class, about one page a
-minute. Notes are written for speaking aloud, one per page, in plain language
+37 slides, 96 pages, 21 cases: sized for a 90-minute class. Notes are written for speaking aloud, one per page, in plain language
 a class 10 student can follow.
 
 The counter in the rail is a **page number that counts right-arrow presses**:
-every step is one page, so it runs from `Page 1 / 88` to `Page 88 / 88`, and
+every step is one page, so it runs from `Page 1 / 96` to `Page 96 / 96`, and
 the run of show (`O`) lists the page each slide starts on.
 
 ## Structure: requirement first, then cases
@@ -74,6 +73,30 @@ Part 1 (MVCC) is chapters 2 to 4. Part 2 (query processing) is chapters 5 to 7.
 The two halves meet in case 21, where every `next()` on the scan node runs the
 xmin/xmax visibility rule from Part 1.
 
+## Real PostgreSQL in every case
+
+Every case shows the actual commands in a psql window, with the output
+PostgreSQL prints, next to the picture, so the idea is tied to code:
+
+| Case | What the psql window runs |
+|------|---------------------------|
+| Row versions | `SELECT ctid, balance ...` before and after an `UPDATE`: the address changes |
+| Stickers | `SELECT xmin, xmax, acc_no, balance FROM accounts` |
+| The rule | `pageinspect`: `heap_page_items(get_raw_page('accounts', 0))` shows both versions; `SELECT` returns one |
+| Watch it work | Two sessions on one timeline with `txid_current()`, `UPDATE`, `COMMIT` and `xmin/xmax` |
+| DELETE | A `REPEATABLE READ` report still counts 3 after another session's `DELETE` |
+| ROLLBACK | `BEGIN; UPDATE ...; ROLLBACK;` and the old balance is back at once |
+| VACUUM | `n_dead_tup` from `pg_stat_user_tables` before and after `VACUUM` |
+| Bloat | `pg_relation_size` from 94 MB to 188 MB after `UPDATE accounts SET balance = balance * 1.01`; `autovacuum_vacuum_scale_factor`; `VACUUM ANALYZE` |
+| Oracle | `n_dead_tup` in psql beside `ORA-01555: snapshot too old` in SQL*Plus |
+| Parser / analyzer | The real error messages: syntax error at "FORM", relation does not exist, `text > integer`, permission denied |
+| Views | `EXPLAIN SELECT ... FROM pune_hnw` reads `accounts` |
+| Planner | `EXPLAIN` for Seq Scan, Index Scan, Bitmap Heap Scan, the three joins and the winning plan; `pg_class` and `pg_stats` for statistics |
+| Executor | The `EXPLAIN` stack (Limit, Sort, Scan) and the final three rows |
+
+The outputs are written to match the lecture's NeoBank numbers (1,000,000
+rows, 12,000 pages, Pune 30%); XIDs, sizes and costs are illustrative.
+
 ## What is animated
 
 | Scene | Motion |
@@ -104,7 +127,7 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. All 88 pages were walked at 1280x760 with no script errors,
+it would not fit. All 96 pages were walked at 1280x760 with no script errors,
 no label off the canvas, and no page needing to be scaled down.
 
 ## Design
