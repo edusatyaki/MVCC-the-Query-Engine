@@ -36,6 +36,10 @@ The whole deck runs on the arrow keys.
 
 40 slides, 182 steps, 22 cases. Notes are written for speaking aloud, one per step.
 
+The counter in the rail is a **page number that counts right-arrow presses**:
+every step is one page, so it runs from `Page 1 / 182` to `Page 182 / 182`, and
+the run of show (`O`) lists the page each slide starts on.
+
 ## Structure: requirement first, then cases
 
 One table runs through the whole lecture: NeoBank's `accounts`, and row 101,

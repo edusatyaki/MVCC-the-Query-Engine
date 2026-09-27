@@ -2087,7 +2087,6 @@ function render(){
   $('#sEyebrow').textContent = sl.eyebrow;
   $('#sKick').textContent    = sl.kick || '';
   railState(sl);
-  $('#stepCount').textContent = `${si+1}/${DECK.length} | step ${pi+1}/${sl.steps.length}`;
   $('#noteSay').innerHTML = sl.steps[pi].note || '-';
   $('#noteNxt').textContent = pi+1 < sl.steps.length
     ? `next: step ${pi+2} of this slide`
@@ -2095,6 +2094,7 @@ function render(){
   const done = DECK.slice(0, si).reduce((n,d)=>n+d.steps.length, 0) + pi + 1;
   const all  = DECK.reduce((n,d)=>n+d.steps.length, 0);
   $('#progFill').style.width = (done/all*100).toFixed(2) + '%';
+  $('#stepCount').textContent = `Page ${done} / ${all}`;
   fitSlide();
 }
 
@@ -2259,7 +2259,7 @@ document.addEventListener('fullscreenchange', () => {
 /* ---- run of show ---- */
 $('#ovGrid').innerHTML = DECK.map((s,i)=>
   `<div class="ovc${s.type==='chapter'?' ovc-ch':''}" data-i="${i}">
-     <div class="i">${s.chapter ? 'CH '+s.chapter.n : ''} | ${s.tag}</div>
+     <div class="i">Page ${DECK.slice(0,i).reduce((n,d)=>n+d.steps.length,0)+1} | ${s.chapter ? 'CH '+s.chapter.n : ''} | ${s.tag}</div>
      <div class="t">${s.title}</div></div>`).join('');
 $('#ovGrid').querySelectorAll('.ovc').forEach(el =>
   el.onclick = () => { si=+el.dataset.i; pi=0; $('#ov').classList.remove('open'); render(); });
