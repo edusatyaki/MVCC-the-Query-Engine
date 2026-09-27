@@ -1960,113 +1960,114 @@ CHAPTERS.forEach(ch => ch.of.forEach(id => {
 }));
 
 /* =====================================================================
-   Narration: what the teacher's voice says on each page, in plain and
-   slightly silly words. One entry per step, keyed by slide id.
-   Written for the ear: "P S Q L", "x min" and so on are spelled the way
-   they should be spoken.
+   Narration: what the teacher says on each page. The teacher does not
+   read the slide aloud; they explain the one idea behind it, point at
+   the picture, use an everyday comparison, and ask the class a question.
+   One entry per step, keyed by slide id. Technical words are spelled the
+   way they should be spoken ("P S Q L", "x min").
    ===================================================================== */
 const NARRATION = {
  title:[
-  'Hello everyone, and welcome! Today we are going inside PostgreSQL, like doctors with a torch, but for databases. Meet Asha, who only reads, and Ravi, who keeps changing things. Part one: how many people can use the same data at once without a fight. Part two: how one query finds its answer in a million rows, super fast.'],
+  'Good morning everyone! Let me ask you something. When you check your bank balance on your phone, lakhs of other people are using the same bank at the same second. Some are only looking, some are sending money. How does the database stay calm and not get confused? That is the first half of today. And the second half: when you ask the database a question, how does it find the answer so fast? Let us find out.'],
  ch1:[
-  'Chapter one. The requirement is simple: one small bank table, so we can check every idea with our own eyes. No magic, no hand waving, just rows and numbers.'],
+  'Before we start, one small promise. We will not talk in the air. We will take one tiny bank, with just a few rows, and test every idea on it. If you can follow three rows, you can follow the whole lecture.'],
  neobank:[
-  'Here is our bank, NeoBank. Each row is one account. Row one zero one belongs to Asha, with fifty thousand rupees in Pune. Remember this row, it is the star of today\'s show. Asha reads her balance. Ravi is the clerk who changes it. What could possibly go wrong?'],
+  'This is our little bank. Do not worry about all the columns, just focus on one row, Asha\'s account, fifty thousand rupees. We will keep coming back to it. And remember the two characters. Asha only looks at her balance. Ravi is the clerk who changes it. Most of today\'s drama happens between these two.'],
  ch2:[
-  'Chapter two, readers and writers. The bank needs lots of people reading and changing the same data at the same time, and nobody should ever see a half-finished change. The easy fix is a lock, but a lock makes everyone stand in a queue, like a railway ticket counter on a Monday morning.'],
+  'Think of a single notice board in your school. Many students want to read it, and a teacher wants to change something on it at the same time. If the teacher locks the board while writing, everyone waits outside. That is exactly the problem a bank has. In this chapter we will see two such situations, and how PostgreSQL avoids the queue.'],
  casewait:[
-  'Case one. Watch the numbers in the middle, they show the order of events. Ravi starts a change and sets Asha\'s balance to forty thousand, but he has not pressed commit yet. Now Asha checks her balance. Question for you: does she have to wait?',
-  'In a database that uses only locks, poor Asha just waits, and waits, and waits. Her screen hangs until Ravi finally commits. She is stuck behind a change that was not even finished. Not fair, right?',
-  'Now the PostgreSQL way. Asha gets fifty thousand instantly, the last finished value, no waiting at all. After Ravi commits, she asks again and sees forty thousand. Readers never wait for writers. Asha is happy, Ravi is happy, everybody is happy.'],
+  'Look at the numbers going down the middle. They tell you what happens first and what happens next. On the left, Ravi has started changing Asha\'s balance but has not finished. On the right, Asha checks her balance at that very moment. So, what should happen? Should she wait? Think about it for a second.',
+  'In an old style database, see what happens on the right side. Asha is simply stuck. The screen is waiting, waiting, and she only gets an answer after Ravi finishes. Imagine standing at an A T M for two minutes because someone else is in the middle of something. Nobody would accept that.',
+  'Now the PostgreSQL way. Asha gets her answer immediately. And which answer? The last finished one, fifty thousand, because Ravi has not finished yet, so his change does not count. Once Ravi finishes, Asha sees the new amount. So the rule to remember: people who are only reading never wait for people who are writing.'],
  casesum:[
-  'Case two. Four accounts, one lakh rupees in total. A slow report is adding them up, while money keeps moving around. Will the total be right?',
-  'Uh oh. The report counts account one, then five thousand rupees jumps from account one to account four, and then the report counts account four too. The same money gets counted twice, and the report says one lakh five thousand. That is money which never existed. Your bank manager would faint.',
-  'The fix is a photo. When the report starts, it takes a photo of the data, called a snapshot. The transfer happens in the other window, but the report keeps reading from its photo, so the total is exactly one lakh. Say cheese, database!'],
+  'Here is a slightly tricky one. A report is adding up money in all accounts, slowly, one by one. While it is adding, money is moving between accounts. What can go wrong? Take a moment and guess.',
+  'See the arrow on top. The report has already counted account one. Then money jumps from account one to account four, which the report has not counted yet. So that same five thousand gets counted twice. The total becomes more than the money that actually exists. It is like counting the students in a class while one student keeps running from one row to another.',
+  'The solution is beautiful and simple. When the report starts, it takes a photo of the data, a snapshot. Look at moment one on the left. After that, whatever happens on the right side does not disturb the report, because it keeps looking at its photo. So the answer is correct for that moment. One photo, one consistent answer.'],
  ch3:[
-  'Chapter three, keeping two versions. The database needs to keep the old value and the new value side by side, and let each person pick the right one. And it must do this for every row, for thousands of people at once. No pressure.'],
+  'Okay, we have seen what PostgreSQL does. Now the real question: how does it do it? How can it show Asha the old value and Ravi the new value at the same time? We will build the answer in three small pieces, and then watch them work together.'],
  appendonly:[
-  'Case three. Ravi wants to change fifty thousand into forty thousand. But until he finishes, Asha still needs to see fifty thousand. So where does the old value live?',
-  'If Ravi just writes over it, fifty thousand disappears, like homework the dog ate. Then Asha either waits, or sees an unfinished number. Both are bad.',
-  'The trick: an update never writes over the old row. It adds a brand new version next to it. In P S Q L you can even see it: the row\'s address, called C T I D, changes from zero comma one to zero comma two. New address, new version. The old one is still there for Asha.'],
+  'Here is the puzzle. Ravi wants to change a number, but Asha still needs the old number for a while. You cannot have both in one box. So where does the old value go?',
+  'Look at the picture. If Ravi simply rubs out the old number and writes the new one, the old value is gone forever. Then Asha has only two bad choices: wait, or see something half done. So overwriting is not an option.',
+  'So PostgreSQL does something clever. It never rubs anything out. It writes the new version in a new place, and keeps the old one where it was. Look at the little address in the terminal, it changes from one place to another. That tells you a brand new copy was made. Old copy for Asha, new copy for Ravi.'],
  xminxmax:[
-  'Case four. Now there are two versions of Asha\'s row, sitting side by side like twins. How does the database know which one is which?',
-  'Look closely. Nothing on them says who made them, or which one is the latest. It is like two identical lunch boxes with no names on them.',
-  'The fix is stickers! Every change gets a number called a transaction I D. Each version carries two hidden stickers. x min says who made it. x max says who replaced it, or zero if it is still the latest. And you can see these stickers in P S Q L, just by asking for them by name.'],
+  'Now we have two copies of the same row. Here is the next problem. How will the database know which copy is old and which is new? They look exactly the same.',
+  'See, there is no name tag on them. It is like two identical water bottles in a classroom. Without a name written on them, nobody knows whose is whose.',
+  'So PostgreSQL sticks two small labels on every copy. The first label says who created this copy. The second label says who replaced it, and zero means nobody has replaced it yet, so it is the latest. These labels are hidden, but as you can see in the terminal, you can ask for them and see them.'],
  rule:[
-  'Case five. Stickers are nice, but we need a clear yes or no test. Can this person see this version, or not?',
-  'Try this puzzle. When this person started, transactions five hundred and eight zero two had finished, but nine zero five was still running. Look at versions A, B, C and D. Which ones can they see? Take a guess before I tell you.',
-  'Here is the rule, and both parts must be true. Rule one: the version was made by a transaction that had finished. Rule two: it was not replaced by a transaction that had finished. So A, yes. B, no, rule one fails. C, no, rule two fails. And D, yes. You just did what the database does millions of times a second. Well done!'],
+  'Labels are good, but we still need a clear rule. When a person looks at a copy, how do they decide, yes I can see this, or no I cannot?',
+  'Let us make it a small game. Look at the table. For this person, some changes were finished and one was still running. Now look at each copy and decide, visible or not. Do not look at the answer yet. Try it with your neighbour.',
+  'The rule has only two checks, and both must pass. First, was this copy made by someone who had finished? Second, has it not been replaced by someone who had finished? If both are yes, you can see it. That is the whole secret. The database does this tiny check millions of times every second.'],
  trace:[
-  'Case six, the full story on Asha\'s row. Ravi\'s change is transaction eight zero two. It has made a new version with forty thousand, but it has not finished yet.',
-  'Follow the moments in the two P S Q L windows. Ravi gets transaction number eight zero two and makes his change. Asha looks, and sees x min five hundred, x max eight zero two, and fifty thousand, because eight zero two has not finished. Ravi commits. Asha looks again and now sees forty thousand. The stickers told the whole story.'],
+  'Now let us put all three pieces together on Asha\'s row. Ravi has made a new copy with forty thousand, but he has not finished yet. What will Asha see?',
+  'Follow the numbers down the middle. First Ravi starts and makes his change. When Asha looks in between, the labels tell her Ravi is not finished, so she gets the old copy, fifty thousand. Then Ravi finishes. Now when Asha looks again, the labels say the new copy is ready, so she sees forty thousand. The labels decided everything. No waiting, no confusion.'],
  ch4:[
-  'Chapter four, deleting, undoing and cleaning. If nothing is ever overwritten, then what does delete do? What does cancel do? And who cleans up all those old copies before they pile up like dirty dishes?'],
+  'So far we only changed values. But real life has more. Sometimes we delete things, sometimes we cancel a change halfway, and all these old copies keep piling up. Who cleans them? This chapter answers all of that, with the same labels we just learned.'],
  delete:[
-  'Case seven. A report starts counting accounts. There are three. Halfway through, Ravi deletes account one zero two. Should the report still count it?',
-  'If delete removed the row right away, the report would say two, even though three accounts existed when it started. Wrong answer, and the report did nothing wrong!',
-  'The fix: delete does not actually remove anything. It only writes Ravi\'s number on the x max sticker. In P S Q L, the report keeps one photo for its whole job, so it still counts three. Ravi, with a fresh photo, counts two. Both are right, for their own moment in time.'],
+  'Here is something that happens in every office. One person is busy counting a pile of files, and in the middle, someone else quietly takes one file away. So what number should the counting person write down at the end? The number of files when they started, or when they finished? Keep that question in mind.',
+  'If the row just disappeared immediately, look what happens. The report started when there were three accounts, but it ends up saying two. The report did nothing wrong, the ground moved under its feet.',
+  'So delete in PostgreSQL does not actually throw the row away. It just puts a label saying, this row was removed by Ravi. The report, which started earlier, still sees the row and says three. Anyone who looks after Ravi finishes sees two. Both answers are correct for their own moment.'],
  rollback:[
-  'Case eight. Ravi\'s transfer fails halfway and has to be cancelled. That is called a rollback. How do we undo his change?',
-  'In a system that writes over old values, cancelling means copying every old value back, one by one. A big change means a big, slow undo. Like un-mixing a cup of tea.',
-  'In PostgreSQL, the failed transaction is simply marked as cancelled. Its new version is ignored by everyone, and the old version never left. In P S Q L: begin, update, rollback, and the old balance is back instantly. Nothing to copy. Easiest undo button in the world.'],
+  'Sometimes a transfer fails in the middle, maybe the network breaks. Then we must cancel it, as if it never happened. How do we undo it?',
+  'In some systems, cancelling means going back and copying every old value back into place, one by one. For a small change it is fine, but for a big change it is like un-mixing sugar from tea. Slow and painful.',
+  'In PostgreSQL there is almost nothing to undo. Remember, the old copy was never touched. The cancelled change is simply marked as cancelled, and everybody ignores its new copy. You can see in the terminal, the moment we say rollback, the old balance is right there. Cancelling is almost free.'],
  vacuum:[
-  'Case nine. The red boxes are old, dead versions. Every change leaves one behind. They take up space. Somebody has to clean up. P S Q L even counts them for us: nine dead versions here.',
-  'But careful! A long report that started earlier may still need some of these old versions. If we throw them away, the report breaks. So we cannot just sweep everything.',
-  'Meet the cleaner, called VACUUM. It removes an old version only when nobody could still need it. In P S Q L, nine dead versions become three, the ones the report still needs. And it also runs by itself in the background, called autovacuum. A cleaner that works without being asked. We all want one of those at home.'],
+  'Now think about it. Every change leaves an old copy behind. Day after day, those old copies keep piling up, like old newspapers in a room. Somebody has to clean them. The red boxes you see are exactly those old copies.',
+  'But careful. See the small locks. A long report that started earlier might still be reading some of these old copies. If we clean them now, that report will break. So the cleaner cannot just sweep everything blindly.',
+  'That cleaner is called VACUUM. It only removes old copies that nobody could possibly need anymore, and it leaves the ones still in use. And the best part, it runs on its own in the background. Just like a good class monitor who cleans the board without being told.'],
  bloat:[
-  'Case ten. Every night, a job adds interest to all ten lakh accounts. Every single row changes. What happens to the table?',
-  'Every change adds a new version, so now there are twenty lakh versions, and half of them are dead. In P S Q L, the table grows from ninety four megabytes to one eighty eight. Twice the size, twice the reading. This is called bloat. The table ate too much.',
-  'The fix: keep the cleaner running often, in small batches. We tell autovacuum to clean this table sooner, and VACUUM ANALYZE cleans up and also refreshes the statistics, which we will need in part two. Remember that word, statistics. It comes back soon.'],
+  'Think about your school bag. If every day you put in a fresh copy of every book, but never take the old ones out, what happens? The bag gets heavier and heavier. Now imagine the bank changes all ten lakh accounts every single night. The same thing happens to the table.',
+  'Every change makes a new copy, so the table suddenly has double the rows, half of them useless old copies. Look at the size in the terminal, it doubles. Now every search has to walk through twice the pages. The table has become fat and slow. We call this bloat.',
+  'The cure is to clean often, in small amounts, instead of once in a while. We can tell the cleaner to be more active for this busy table. And there is one command that cleans and also refreshes some important numbers called statistics. Keep that word in your mind, it will be very important in part two.'],
  oracle:[
-  'Case eleven. PostgreSQL keeps old versions inside the table, and that is why it needs a cleaner. Is there another way?',
-  'Oracle does it differently. It writes the new value straight into the row, and moves the old value to a separate area called undo. Cancelling is slower there, but the table does not bloat. And if a long report needs an old value that was already thrown away, it gets an error called snapshot too old. Every design has its own headache.'],
+  'Is this the only way to do it? Keeping old copies inside the table means we always need a cleaner. Could the old copies be kept somewhere else?',
+  'Yes. Oracle, another famous database, chooses a different path. It writes the new value directly and moves the old value to a separate storage area. So its table does not get fat. But cancelling becomes slower, and a very long report can fail if its old copy was already thrown away. So neither way is perfect. Every design gives something and takes something.'],
  ch5:[
-  'Welcome to part two! Chapter five, reading your query. The requirement: turn the text you type into something the database understands, and catch your mistakes early. Because to the database, your query starts as just a long line of letters.'],
+  'Welcome to part two! Until now we talked about many people at the same time. Now we focus on one single query. When you type a query and press enter, it is just text for the database. So what happens inside? Let us open the box.'],
  pipeline:[
-  'Every query goes through four steps, like a relay race. The parser checks the grammar. The analyzer checks that things exist and that you are allowed. The planner finds the fastest way. And the executor does the actual work and sends back the rows.'],
+  'Think of this like a factory line. Your query enters from the left and goes through four stations. First, check the grammar. Second, check if everything makes sense. Third, plan the fastest way. Fourth, actually do the work. Each station has one job, and we will visit them one by one.'],
  running:[
-  'This is the query we will follow for the rest of the class. Find the accounts in Pune with more than one lakh rupees. Two conditions, joined by the word AND. The rich people of Pune, basically.'],
+  'This is the query we will follow till the end of the class. In simple words, it asks: show me the people in Pune who have more than one lakh rupees. Remember this sentence, because every station will work on this one query.'],
  parser:[
-  'Case twelve. The database receives your query as one long line of letters. How does it know it is real S Q L? Here are two suspects. Which one is broken?',
-  'Step one, the parser chops the line into words, called tokens. Keywords like SELECT, names like accounts, symbols like equals, and values like one lakh. Like cutting vegetables before cooking.',
-  'Step two, it arranges the words into a tree, using the grammar rules of S Q L. But the parser only checks grammar, not meaning. So, SELECT star FORM accounts fails right here, because FORM is not a word S Q L knows. And SELECT unicorn FROM narnia actually passes the parser. Unicorns are grammatically fine. It only fails in the next step.'],
+  'The first station only cares about grammar, just like your English teacher checking sentence structure. Here are two suspicious queries. Which one do you think is broken? Guess.',
+  'First, the database breaks the sentence into small words, like cutting a long sentence into pieces. See how every piece gets a colour: some are keywords, some are names, some are values.',
+  'Then it arranges those words into a tree to check the grammar. Now the interesting part. The query with the spelling mistake FORM fails right here. But the one asking for unicorns from narnia passes, because the grammar is perfect. The grammar checker does not know whether narnia exists. That is somebody else\'s job, the next station.'],
  analyzer:[
-  'Case thirteen. These three queries have perfect grammar, but P S Q L rejects all three. Read the error messages. A misspelled table, a text compared with a number, and an intern trying to peek at bank accounts.',
-  'This is the analyzer\'s job. It checks every name against the database\'s own list of tables, called the catalog. Does the table exist? Do the types fit? Is this user allowed? Mistakes are caught in order: grammar first, then does it exist, then are you allowed. Sorry intern, no peeking.'],
+  'Now look at these three errors in the terminal. The grammar of all three is perfect, but the database still says no. Why? Because perfect grammar does not mean the sentence makes sense.',
+  'This station checks meaning. Does this table really exist? Is it a number or a word? Is this person even allowed to see this data? It checks everything against the database\'s own register of tables, just like a security guard checking ID cards at the gate.'],
  rewriter:[
-  'Case fourteen. Someone reads from pune h n w. But that is a view, a saved query, not a real table. It has no rows of its own. So what does the database actually read?',
-  'The database quietly swaps the view\'s name for the saved query inside it. So it becomes our normal query on the real accounts table. In P S Q L, EXPLAIN proves it: we asked for the view, but the plan reads accounts. The view was just a shortcut.'],
+  'Look at the words create view on the left. A view is like a shortcut on your phone\'s home screen. The shortcut itself holds nothing, it only points somewhere else. So when someone opens this shortcut, where does the database actually go to fetch the data?',
+  'It quietly replaces the shortcut with the real query hidden inside it. Look at the terminal. We asked for the view, but the plan shows it is reading the real accounts table. So a view is just a nickname for a longer query.'],
  ch6:[
-  'Chapter six, choosing the fastest way. The requirement: find the fastest route to the answer, without trying every route first. There are many ways to find the same rows, and the best one depends on the data. Like choosing between the highway and the shortcut.'],
+  'Now the most interesting station, the planner. There are many roads to the same answer, some short, some very long. The database has to choose the best road without actually travelling on all of them first. How does it decide?'],
  costphil:[
-  'Case fifteen. We add an index on branch. An index is like the index at the back of a textbook. Question: is using the index always faster?',
-  'Imagine ninety nine percent of accounts were in Pune. Using the index means jumping to a new page for almost every single row, about nine lakh ninety thousand jumps. Reading the whole table once is much faster. And EXPLAIN shows the database knows it too: it picks a sequential scan. No fixed rules. It estimates the cost of each way and picks the cheapest.'],
+  'Everyone thinks an index always makes things faster. An index is like the index at the back of your textbook. But is it always faster? Let us check.',
+  'Imagine almost every account is in Pune. Using the index means flipping to a new page again and again for almost every row. It is faster to just read the whole book from start to end. And look, the database agrees, it ignores the index. So there is no fixed rule. The database compares the cost and picks the cheapest.'],
  stats:[
-  'Case sixteen. To choose the fastest way, the database must guess how many rows will match, before running anything. How can it guess?',
-  'Without any information, all it knows is that the table has ten lakh rows. How many are in Pune? How many are rich? No idea. It is guessing blindfolded.',
-  'The fix is statistics. ANALYZE looks at a sample of rows and saves some facts. Thirty percent of accounts are in Pune, and five percent have more than one lakh. So ten lakh times zero point three times zero point zero five is about fifteen thousand rows. Maths class was useful after all!'],
+  'Before a cricket match, the captain decides the batting order without knowing how the match will go. He uses past records. The database has the same problem. It must choose a plan before it runs anything. So what records can it look at?',
+  'Without any information, it is completely blind. It knows the table is big, but it has no idea how many are from Pune or how many are rich.',
+  'So from time to time the database takes a small sample and notes down some facts, like thirty percent live in Pune. These facts are called statistics. With them it can do simple maths: ten lakh, then thirty percent, then five percent, which gives about fifteen thousand rows. Exactly like estimating the number of students in a school from one class.'],
  scans:[
-  'Case seventeen. Our fifteen thousand matching rows are spread all over the table. What is the fastest way to collect them?',
-  'Way one, read everything, page by page, from start to end. EXPLAIN calls it a sequential scan. Great when most rows match, or the table is small.',
-  'Way two, use the index. Look up each match, then jump to its page. EXPLAIN calls it an index scan. Perfect when only a few rows match, like one account number.',
-  'Way three, the middle path. First make a list of all the pages that have matches, then visit those pages in order, only once each. EXPLAIN calls it a bitmap heap scan. Just right for our fifteen thousand rows. Not too hot, not too cold.'],
+  'We expect about fifteen thousand matching rows, spread all over the table. There are different ways to pick them up. Let us look at three.',
+  'The first way is to simply read everything, page by page, from beginning to end. It sounds slow, but when most rows match, it is actually the smartest way.',
+  'The second way uses the index. Find each matching row in the index, then jump straight to its page. Brilliant when you want just one or two rows, like one account number. But for thousands of rows, all that jumping becomes tiring.',
+  'The third way is the middle path. First make a list of all the pages that have matches, then visit those pages in order, one time each. Like planning your shopping list by shop, instead of running back and forth. For our fifteen thousand rows, this one fits best.'],
  joins:[
-  'Case eighteen. Now we have a second table, with every transaction. We want each Pune account together with its transactions. Comparing every account with every transaction means billions of comparisons. Your laptop would start crying.',
-  'There are three smarter ways. Nested loop: for each account, look up its transactions using an index. Hash join: build a quick lookup table in memory, then go through the other table just once. Merge join: sort both lists by account number and zip them together, like a zip on a jacket. EXPLAIN tells us which one the database picked. Here, a hash join.'],
+  'Now we have two tables, accounts and transactions, and we want to match them. The simplest idea is to compare every account with every transaction. Look at all those lines. At a real bank that would be billions of comparisons.',
+  'So the database has three smarter tricks. One, for each account, quickly look up its transactions using an index. Two, put one table into a quick lookup list in memory, then go through the other only once. Three, sort both lists and walk down them together, like closing a zip. The database picks whichever is cheapest, and here it chose the second trick.'],
  decision:[
-  'Case nineteen. Three possible ways to answer our query. The database gives each one a cost score. Lower is better, like golf.',
-  'Reading everything costs about twenty two thousand. Using the index costs sixty thousand or more, because of all the random jumps. The middle path, the bitmap scan, costs about nine thousand. Winner! And EXPLAIN shows exactly this plan, with about fifteen thousand rows, the same number we worked out ourselves.'],
+  'So now we have three possible plans. Which one will the database actually use? It gives each plan a cost, like a price tag, and the lowest price wins.',
+  'Look at the bars. Reading everything costs quite a lot. The index costs even more, because of all that jumping. The middle path is the cheapest, so it wins. And the terminal shows the database picked exactly this plan. We did the same maths ourselves, and we reached the same answer as the database.'],
  ch7:[
-  'Chapter seven, the final chapter, running the plan. The requirement: send the first rows quickly, use little memory, and show each person only the rows they are allowed to see. This is where part one and part two finally meet.'],
+  'We are at the last chapter. The plan is ready. Now somebody has to actually run it, quickly, without wasting memory, and while respecting the labels we learned in part one. This is where both halves of today\'s class meet.'],
  volcano:[
-  'Case twenty. The plan is a stack of steps: limit on top of sort on top of scan. If every step finished all its work before passing it on, you would wait forever, and memory would fill up with ten lakh rows.',
-  'Instead, the top step asks the step below for just one row. That request passes down, and one row comes back up, like a relay race with a baton. So the first rows arrive quickly and memory stays small. EXPLAIN prints the same stack of steps, top to bottom.'],
+  'Imagine a stack of workers, one on top of another. If every worker finished all their work before passing anything up, the top person would wait a long time, and the table would be full of papers. That is the problem you see here.',
+  'So instead, the top worker asks the one below, give me just one row. That request goes down, and one row comes back up, like passing a ball in a relay race. The first result reaches you quickly and nobody holds a big pile. Only sorting is special, because to sort you must see everything first.'],
  exectrace:[
-  'Case twenty one, the grand finale. We want the top three richest accounts in Pune. But the table also has one deleted row, and one row from a change that is not finished. Which three come back?',
-  'The scan checks every row twice. Does it match the query? And can this person see it, using our sticker rule from part one? Kiran\'s deleted row and Arjun\'s unfinished row are hidden. Then sort puts the rest in order, and limit keeps the top three.',
-  'And here is what the user actually sees in P S Q L: Nisha, Meera and Rohan. No Kiran, no Arjun. The rule from part one did its job inside the engine from part two. Mission accomplished!'],
+  'This is the final case, and it connects everything we did today. Look at the rows the scan is going to meet. Some are perfect, some are from the wrong city, one was deleted, and one is from a change that is still half done. Before I show you, guess: which three names will the user finally see?',
+  'Look at the list in the middle. The scan checks every row twice. First, does it match what we asked? Second, the label rule from part one, is this row visible to me? The deleted row and the unfinished row are hidden. Then the rest are sorted, and only the top three go up.',
+  'And this is what the user finally sees. Three clean rows, no deleted data, no half finished data. The label rule from part one worked silently inside the engine of part two. That is the connection between everything we studied today.'],
  wrap:[
-  'Let us replay the whole journey. The parser checked the grammar. The analyzer checked the names and permissions. The planner used statistics to pick the fastest way. And the executor passed rows up one at a time, showing each person only what they should see. That is PostgreSQL. Thank you, and see you next class!']
+  'Let us quickly revise. The first station checked the grammar. The second checked the meaning. The third used statistics to choose the fastest road. And the last one brought rows up one by one, showing each person only what they should see. If you remember this one picture, you remember today\'s class. Thank you, and see you next time!']
 };
 
 /* =====================================================================
