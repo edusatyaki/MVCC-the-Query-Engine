@@ -1476,8 +1476,8 @@ const DECK = [
   {note:'Welcome. Today we open the hood of PostgreSQL. One table sits in the middle of everything: NeoBank\'s accounts. Asha reads it, Ravi writes it, and both do so at the same moment.'},
   {note:'Two halves. First, how many concurrent transactions coexist on one row: MVCC. Second, what the engine does with a single query that touches a million rows: the four-stage pipeline.'}],
   body:(st)=>`
-    <div class="stage-row">${sceneTitle(st)}</div>
-    <p class="lede">Readers and writers touch the same data at the same time. <b>How does PostgreSQL keep them out of each other's way</b>, and what does it do with the SQL you send it?</p>` },
+    <p class="lede">Readers and writers touch the same data at the same time. <b>How does PostgreSQL keep them out of each other's way</b>, and what does it do with the SQL you send it?</p>
+    <div class="stage-row">${sceneTitle(st)}</div>` },
 
 { id:'agenda', kick:'two halves, 72 minutes', eyebrow:'Today\'s lecture', title:'Where we are going',
   tag:'agenda', steps:[
