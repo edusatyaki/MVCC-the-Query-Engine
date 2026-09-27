@@ -522,6 +522,22 @@ text{font-family:var(--hand)}
   border:1.5px solid var(--line);border-radius:3px;background:var(--card);color:var(--ink)}
 .howto{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;justify-content:center}
 
+/* ---- psql terminal windows: dark in both themes, like a real terminal ---- */
+.terms{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;flex:0 0 auto}
+.term{background:#1D1A17;border:2.5px solid var(--ink);border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm);min-width:0}
+.term-bar{display:flex;align-items:center;gap:.28rem;padding:.22rem .55rem;background:#3A342D;color:#E8DFD0;
+  font-family:var(--hand);font-size:.5rem;letter-spacing:.5px}
+.term-bar i{width:.42rem;height:.42rem;border-radius:50%;background:#E8553A;display:inline-block}
+.term-bar i:nth-child(2){background:#F7C948} .term-bar i:nth-child(3){background:#6FBF73}
+.term-bar span{margin-left:.35rem}
+.term pre{margin:0;padding:.45rem .65rem;font-family:var(--mono);font-size:.54rem;line-height:1.42;color:#EDE6D8;
+  white-space:pre;overflow:hidden}
+.term .pr{color:#8FC7FF;font-weight:700}
+.term .cm{color:#9E9382}
+.term .nw{color:#8FD6AE;font-weight:700}
+.term .wt{color:#F7C948;font-weight:700;animation:blip 1.4s ease-in-out infinite}
+.term.bad{border-color:var(--flame)} .term.bad .term-bar{background:#6B2A1E}
+
 /* ---- Arial throughout: it runs wider than the sketch faces, so sizes are retuned ---- */
 :root{--hand:Arial,Helvetica,sans-serif;--marker:Arial,Helvetica,sans-serif}
 text{font-family:Arial,Helvetica,sans-serif}
@@ -1476,6 +1492,24 @@ const P   = note => ({ph:'problem', note});
 const SEE = note => ({ph:'see', note});
 const SOL = note => ({ph:'solve', note});
 
+/* two psql sessions side by side, drawn as terminal windows */
+const term = (title, body, cls='') => `<div class="term ${cls}"><div class="term-bar"><i></i><i></i><i></i><span>${title}</span></div><pre>${body}</pre></div>`;
+const terms = (a, b) => `<div class="terms">${a}${b}</div>`;
+const PR  = '<span class="pr">neobank=#</span> ';
+const PRT = '<span class="pr">neobank=*#</span> ';
+const PRC  = '<span class="pr">neobank-#</span> ';    /* psql's prompt for a statement's next line */
+const PRCT = '<span class="pr">neobank-*#</span> ';
+const CM  = s => `<span class="cm">${s}</span>`;
+const NEW = s => `<span class="nw">${s}</span>`;
+const RAVI_T = `${PR}BEGIN;
+BEGIN
+${PRT}UPDATE accounts SET balance = 40000
+${PRCT}  WHERE acc_no = 101;
+UPDATE 1
+${CM('-- not committed yet')}`;
+const ASHA_Q = `${PR}SELECT balance FROM accounts
+${PRC}  WHERE acc_no = 101;`;
+
 const DECK = [
 /* ------------------------------ chapter 1 ------------------------------ */
 { id:'title', kick:'one table, a reader and a writer', eyebrow:'PostgreSQL internals', title:'MVCC & the Query Engine',
@@ -1510,25 +1544,33 @@ const DECK = [
 { id:'casewait', kick:'readers vs. writers', eyebrow:'Readers and writers', title:'Asha should not have to wait',
   tag:'case', problem:'Ravi is halfway through changing Asha\'s balance. Asha checks her balance right now. Does she have to wait?',
   steps:[
-  P('Ravi has started changing account 101 from 50,000 to 40,000, but he has not finished. Asha checks her balance now. Should she wait?'),
-  SEE('With a lock, Ravi\'s change locks the row. Asha\'s request hits the lock and waits. She is stuck behind a change that is not even finished.'),
-  SOL('The fix: keep two versions of the row. The old one, 50,000, is finished. Ravi\'s new one, 40,000, is not. Asha reads the old one straight away, and it is the correct answer, because Ravi has not finished. One limit: two people changing the same row still take turns.')],
+  P('Two psql windows, side by side. On the left, Ravi types BEGIN and an UPDATE that sets account 101 to 40,000, but he has not typed COMMIT. On the right, Asha asks for her balance. What comes back? Should she wait?'),
+  SEE('In a database that uses only locks, Ravi\'s change locks the row, and Asha\'s window just hangs, waiting. She is stuck behind a change that is not even finished. PostgreSQL does not do this; the next click shows what it does.'),
+  SOL('PostgreSQL keeps two versions of the row. Asha\'s SELECT returns 50,000 at once: the last finished value. Then Ravi types COMMIT, Asha runs the same SELECT again, and now sees 40,000. One limit: two people changing the same row still take turns.')],
   body:(st)=>{
-    if(st===0) return problemCard(SLIDE.casewait) + `<div class="stage-row">${sceneLock(0)}</div>`;
-    if(st===1) return `<div class="stage-row">${sceneLock(2)}</div>`;
-    return `<div class="stage-row">${sceneMvcc(1)}</div>
-      ${fix('<b>Readers never wait for writers.</b> Each person sees the last finished version. (Two writers on the same row still take turns.)')}`; } },
+    const ravi = st < 2 ? RAVI_T : RAVI_T + '\n' + NEW(`${PRT}COMMIT;\nCOMMIT`);
+    const asha = st === 0 ? `${ASHA_Q}\n${CM('-- what comes back?')}`
+      : st === 1 ? `${ASHA_Q}\n<span class="wt">... waiting for Ravi's lock</span>`
+      : `${ASHA_Q}\n${NEW(' balance\n---------\n   50000\n(1 row)')}   ${CM('-- instant, no waiting')}\n${ASHA_Q}\n${NEW(' balance\n---------\n   40000\n(1 row)')}   ${CM('-- after Ravi commits')}`;
+    const t = terms(term('psql: Ravi (T1), the writer', ravi),
+                    term(st === 1 ? 'Asha (T2), in a database that locks readers' : 'psql: Asha (T2), the reader', asha, st === 1 ? 'bad' : ''));
+    if(st===0) return problemCard(SLIDE.casewait) + `<div class="stage-row" style="flex:0 0 auto;height:26%">${sceneLock(0)}</div>` + t;
+    if(st===1) return `<div class="stage-row" style="flex:0 0 auto;height:30%">${sceneLock(2)}</div>` + t;
+    return `<div class="stage-row" style="flex:0 0 auto;height:30%">${sceneMvcc(1)}</div>` + t +
+      fix('<b>In PostgreSQL, readers never wait for writers.</b> Asha sees 50000 until Ravi commits, then 40000.'); } },
 
 { id:'casesum', kick:'a photo of the data', eyebrow:'Readers and writers', title:'A long report must add up',
   tag:'case', problem:'A report adds up every balance, and it takes 5 minutes. Money keeps moving while it runs. Will the total be right?',
   steps:[
   P('Four accounts, 100,000 rupees in total. A report adds them up slowly. Transfers keep happening while it runs.'),
   SEE('The report reads accounts 1 and 2. Then 5,000 moves from account 1, already counted, to account 4, not counted yet. The report reads account 4 with the extra 5,000. Total: 105,000. It counted the same money twice.'),
-  SOL('The fix: the report works from a photo of the data, taken when it starts. Changes after that moment do not count. Account 4\'s old version, 40,000, is still kept, so the report reads that. Total: 100,000. Correct.')],
+  SOL('The fix: the report works from a photo of the data, taken when it starts. In the terminals, the transfer on the right commits while the report on the left is still reading, but the report still prints 100,000, because account 4\'s old version is kept for it.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.casesum) + `<div class="stage-row">${sceneSum(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneSum(3)}</div>`;
-    return `<div class="stage-row">${sceneSum(4, true)}</div>
+    return `<div class="stage-row" style="flex:0 0 auto;height:36%">${sceneSum(4, true)}</div>
+      ${terms(term('psql: the report (T1)', `${PR}SELECT SUM(balance) FROM accounts;\n${NEW('  sum\n--------\n 100000\n(1 row)')}\n${CM('-- one query = one photo of the data')}`),
+              term('psql: the transfer (T2), running meanwhile', `${PR}BEGIN;\n${PRT}UPDATE accounts SET balance = balance - 5000\n${PRCT}  WHERE acc_no = 1;\n${PRT}UPDATE accounts SET balance = balance + 5000\n${PRCT}  WHERE acc_no = 4;\n${PRT}COMMIT;\nCOMMIT`))}
       ${fix('The report uses a <b>snapshot</b>: a photo of the data taken when it started.')}`; } },
 
 /* ------------------------------ chapter 3 ------------------------------ */

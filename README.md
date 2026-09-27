@@ -79,6 +79,7 @@ xmin/xmax visibility rule from Part 1.
 | Scene | Motion |
 |-------|--------|
 | Problem scenes | Each case first animates what breaks: an in-place overwrite that destroys 50000, a sum that invents 5,000, a DELETE that makes a count wrong, an undo log copied back row by row, 990,000 index hops, 20 all-pairs join lines, nodes that buffer a million rows |
+| psql terminals | Chapter 2's cases show two psql sessions side by side: Ravi's `BEGIN; UPDATE ...` next to Asha's `SELECT`, which hangs in a lock-only database but returns 50000 at once in PostgreSQL, then 40000 after Ravi's `COMMIT`; and a `SUM(balance)` report printing 100000 while a transfer commits beside it |
 | Locks make readers wait | Ravi's UPDATE reaches the row and locks it; Asha's SELECT stalls at the lock |
 | The core promise | Two versions of the row; Asha's query takes the finished one and returns at once |
 | A report that adds up | A transfer lands mid-count and the total comes out 105,000; with a snapshot it is 100,000 |
