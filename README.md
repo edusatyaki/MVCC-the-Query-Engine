@@ -32,6 +32,8 @@ The whole deck runs on the arrow keys.
 | `T` | light / dark theme |
 | `F` *(or the **Present** button)* | full screen |
 | `+` / `-` / `0` | type size, for the room you are in |
+| `M` *(or the **Voice** button)* | mute / unmute the narrator |
+| `V` | replay the narration for this page |
 | `Home` / `End` | first / last slide |
 
 33 slides, 68 pages, 21 cases: sized for an 80-minute class. Notes are written for speaking aloud, one per page, in plain language
@@ -40,6 +42,26 @@ a class 10 student can follow.
 The counter in the rail is a **page number that counts right-arrow presses**:
 every step is one page, so it runs from `Page 1 / 68` to `Page 68 / 68`, and
 the run of show (`O`) lists the page each slide starts on.
+
+## The narrator
+
+Every page has a spoken explanation, written like a friendly teacher with a few
+jokes, in words a class 10 student can follow. It plays automatically each time
+the page changes, and stops the moment you move on.
+
+- It uses the browser's built-in speech voice (the Web Speech API), so there are
+  no audio files and it works offline. It prefers an Indian English voice (for
+  example Rishi on a Mac, Heera or Ravi on Windows) and falls back to any
+  English voice.
+- Browsers only allow sound after the first click or key press, so the narrator
+  starts from your first interaction. The button reads *Voice: click to start*
+  until then.
+- **Mute** with the Voice button or `M`; the choice is remembered. `V` replays
+  the current page. The button pulses while the narrator is talking.
+- The scripts live in `NARRATION` inside `index.html`, one entry per step,
+  keyed by slide id. Technical words are spelled the way they should be spoken
+  (`P S Q L`, `x min`, `C T I D`). Speaker notes (`S`) stay separate, for the
+  presenter.
 
 ## Structure: requirement first, then cases
 
