@@ -101,9 +101,11 @@ only one step needs scaling at all, and only to 90%.
 
 ## Design
 
-A **sketchnote**, inherited from Database-Optimization: cream paper, marker
-headings, highlighter ribbons and hand-drawn boxes. Caveat for headings,
-Patrick Hand for body text, JetBrains Mono for SQL. The page is plain ASCII:
+The sketchnote layout inherited from Database-Optimization: cream paper,
+highlighter ribbons and hand-drawn boxes. **Every piece of text is Arial**,
+headings, body, SQL and the labels inside the SVG scenes included, and no web
+fonts are loaded. Arial runs wider than the original sketch faces, so the type
+scale and the SVG label sizes were retuned to match. The page is plain ASCII:
 arrows and symbols are drawn in SVG rather than typed as Unicode characters.
 
 ## Deploy

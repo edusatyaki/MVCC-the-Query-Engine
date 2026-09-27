@@ -6,9 +6,6 @@
 <meta http-equiv="Cache-Control" content="no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <title>MVCC &amp; the Query Engine</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
 :root{
   /* Type is a share of SCREEN HEIGHT so the deck keeps its physical size on any
@@ -88,13 +85,13 @@
   --wobble:255px 15px 225px 15px/15px 225px 15px 255px;
   --wobble-2:15px 225px 15px 255px/225px 15px 255px 15px;
 
-  --hand:'Patrick Hand','Comic Sans MS',cursive;
-  --marker:'Caveat','Patrick Hand',cursive;
+  --hand:Arial,Helvetica,sans-serif;
+  --marker:Arial,Helvetica,sans-serif;
   --arial:var(--hand);
   --serif:var(--marker);
   --news:var(--hand);
   --sans:var(--hand);
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --mono:Arial,Helvetica,sans-serif;
 }
 :root[data-theme="dark"]{
   /* accents re-lit for a dark ground - the light-theme values are far too dark here */
@@ -339,7 +336,7 @@ text{font-family:var(--hand)}
 .t-lbl{font-size:17px;fill:var(--ink)}
 .t-serif{font-family:var(--marker);font-weight:700;fill:var(--ink)}
 .t-sub{font-size:16px;fill:var(--muted)}
-.t-mono{font-family:'JetBrains Mono',monospace;font-size:14px;fill:var(--ink-2)}
+.t-mono{font-family:Arial,Helvetica,sans-serif;font-size:14px;fill:var(--ink-2)}
 .t-big{font-family:var(--marker);font-size:30px;font-weight:700;fill:var(--ink)}
 .box{fill:var(--card);stroke:var(--ink);stroke-width:2.6;filter:url(#rough)}
 .box-navy{fill:var(--card);stroke:var(--ink);stroke-width:2.6;filter:url(#rough)}
@@ -524,6 +521,26 @@ text{font-family:var(--hand)}
 .chr{font-family:var(--mono);font-size:.62rem;min-width:1.05em;text-align:center;padding:.12rem .1rem;
   border:1.5px solid var(--line);border-radius:3px;background:var(--card);color:var(--ink)}
 .howto{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;justify-content:center}
+
+/* ---- Arial throughout: it runs wider than the sketch faces, so sizes are retuned ---- */
+:root{--hand:Arial,Helvetica,sans-serif;--marker:Arial,Helvetica,sans-serif}
+text{font-family:Arial,Helvetica,sans-serif}
+.slide-title{font-size:1.45rem;font-weight:700;letter-spacing:-.01em}
+.rail-lecture b{font-size:.78rem;font-weight:700}
+.rn-t{font-size:.56rem}
+.rail-by b{font-size:clamp(10px,.5rem,13px)}
+.card h3{font-size:.84rem;line-height:1.15}
+.card p{font-size:.68rem}
+.lede{font-size:.8rem}
+.ch-num{font-size:5.4rem}
+.ch-title{font-size:1.8rem}
+.ch-problem{font-size:1.05rem}
+.quote{font-size:.95rem}
+.bigq{font-size:7rem}
+.probcard .pq{font-size:.95rem;line-height:1.2}
+.req p{font-size:.78rem;line-height:1.25}
+.case-n{font-size:.72rem}
+.t-lbl{font-size:15px} .t-sub{font-size:14px} .t-big{font-size:24px}
 </style>
 </head>
 <body>
@@ -656,14 +673,14 @@ function person(x, y, name, role, col, cls='', delay=0){
   return `<g class="${cls}" ${D(delay)}>
     <circle cx="${x}" cy="${y}" r="19" fill="var(--amber-soft)" stroke="var(--ink)" stroke-width="2.4"/>
     <path d="M${x-28} ${y+62} q0 -38 28 -38 q28 0 28 38 z" fill="${col}" stroke="var(--ink)" stroke-width="2.4"/>
-    <text class="t-serif" x="${x}" y="${y+92}" text-anchor="middle" style="font-size:26px">${name}</text>
+    <text class="t-serif" x="${x}" y="${y+92}" text-anchor="middle" style="font-size:21px">${name}</text>
     <text class="t-sub" x="${x}" y="${y+114}" text-anchor="middle">${role}</text></g>`;
 }
 function cyl(x, y, w, h, label, sub='', cls='', fill='var(--card)'){
   return `<g class="${cls}">
     <path d="M${x} ${y+14} v${h-28} a${w/2} 14 0 0 0 ${w} 0 v${-(h-28)}" fill="${fill}" stroke="var(--ink)" stroke-width="2.6"/>
     <ellipse cx="${x+w/2}" cy="${y+14}" rx="${w/2}" ry="14" fill="var(--amber-soft)" stroke="var(--ink)" stroke-width="2.6"/>
-    <text class="t-serif" x="${x+w/2}" y="${y+h/2+12}" text-anchor="middle" style="font-size:26px">${label}</text>
+    <text class="t-serif" x="${x+w/2}" y="${y+h/2+12}" text-anchor="middle" style="font-size:21px">${label}</text>
     ${sub?`<text class="t-sub" x="${x+w/2}" y="${y+h/2+34}" text-anchor="middle">${sub}</text>`:''}</g>`;
 }
 function boxT(x, y, w, h, title, sub='', o={}){
@@ -672,9 +689,9 @@ function boxT(x, y, w, h, title, sub='', o={}){
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="var(--ink)"
       stroke-width="${o.sw||2.5}" ${o.dash?'stroke-dasharray="8 6"':''} ${o.glow?'class="sv-glow"':''}/>
     <text class="t-serif" x="${x+w/2}" y="${y+(sub?h/2-2:h/2+8)}" text-anchor="middle"
-      style="font-size:${o.fs||22}px;fill:${o.tc||'var(--ink)'}">${title}</text>
+      style="font-size:${o.fs||18}px;fill:${o.tc||'var(--ink)'}">${title}</text>
     ${sub?`<text x="${x+w/2}" y="${y+h/2+22}" text-anchor="middle"
-      style="font-size:${o.ss||15}px;fill:${o.sc||'var(--muted)'}">${sub}</text>`:''}</g>`;
+      style="font-size:${o.ss||12}px;fill:${o.sc||'var(--muted)'}">${sub}</text>`:''}</g>`;
 }
 function lockIco(x, y, s=1, col='var(--flame)'){
   return `<g transform="translate(${x} ${y}) scale(${s})">
@@ -697,15 +714,15 @@ function tup(x, y, o){
   const cell = (cx, lab, val, hi) => `
     <rect x="${cx}" y="${y+8}" width="98" height="${h-16}" rx="3"
       fill="${hi?'var(--amber)':'var(--paper-2)'}" stroke="var(--ink)" stroke-width="1.8"/>
-    <text x="${cx+49}" y="${y+24}" text-anchor="middle" style="font-size:13px;fill:var(--muted)">${lab}</text>
-    <text class="t-mono" x="${cx+49}" y="${y+h-15}" text-anchor="middle" style="font-size:18px;fill:var(--ink);font-weight:700">${val}</text>`;
+    <text x="${cx+49}" y="${y+24}" text-anchor="middle" style="font-size:10px;fill:var(--muted)">${lab}</text>
+    <text class="t-mono" x="${cx+49}" y="${y+h-15}" text-anchor="middle" style="font-size:14px;fill:var(--ink);font-weight:700">${val}</text>`;
   return `<g class="${o.cls||''}" ${D(o.delay||0)} ${st==='gone'?'opacity=".45"':''}>
     <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fills[st]}" stroke="var(--ink)" stroke-width="2.4" ${dash}/>
     <circle cx="${x+34}" cy="${y+h/2}" r="19" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/>
-    <text class="t-serif" x="${x+34}" y="${y+h/2+8}" text-anchor="middle" style="font-size:22px">${o.v}</text>
-    <text class="t-mono" x="${x+66}" y="${y+h/2+6}" style="font-size:17px;fill:var(--ink)">${o.data}</text>
+    <text class="t-serif" x="${x+34}" y="${y+h/2+8}" text-anchor="middle" style="font-size:18px">${o.v}</text>
+    <text class="t-mono" x="${x+66}" y="${y+h/2+6}" style="font-size:14px;fill:var(--ink)">${o.data}</text>
     ${cell(x+w-214, 'xmin', o.xmin, o.hiMin)}${cell(x+w-108, 'xmax', o.xmax, o.hiMax)}
-    ${o.tag?`<text class="t-serif" x="${x+w+18}" y="${y+h/2+9}" style="font-size:24px;fill:${o.tagc||'var(--ink)'}">${o.tag}</text>`:''}
+    ${o.tag?`<text class="t-serif" x="${x+w+18}" y="${y+h/2+9}" style="font-size:19px;fill:${o.tagc||'var(--ink)'}">${o.tag}</text>`:''}
   </g>`;
 }
 const VIS = 'var(--leaf)', INV = 'var(--flame-ink)', PEND = 'var(--orange-deep)';
@@ -721,8 +738,8 @@ function sceneTitle(st){
   g += person(870, 70, 'Ravi', 'the writer', 'var(--flame)', 'sv-pop', 200);
   g += wire('M175 120 C 280 120, 320 125, 405 125', {color:'var(--pencil-2)', dur:1.6});
   g += wire('M825 120 C 720 120, 680 125, 595 125', {color:'var(--flame)', dur:1.6, delay:.5});
-  g += `<text x="290" y="100" text-anchor="middle" class="t-mono" style="font-size:15px">SELECT</text>
-        <text x="710" y="100" text-anchor="middle" class="t-mono" style="font-size:15px">UPDATE</text>`;
+  g += `<text x="290" y="100" text-anchor="middle" class="t-mono" style="font-size:12px">SELECT</text>
+        <text x="710" y="100" text-anchor="middle" class="t-mono" style="font-size:12px">UPDATE</text>`;
   if(st >= 1){
     g += `<g class="${an(1,st)}">
       ${boxT(120, 250, 340, 70, 'Part 1: MVCC', 'many transactions, one row', {fill:'var(--pencil-soft)'})}
@@ -735,17 +752,17 @@ function sceneTitle(st){
 function sceneTable(st){
   const cols = ['acc_no','holder_name','balance','branch'], xs = [60, 250, 480, 690], W = 880;
   let g = `<rect x="40" y="30" width="${W}" height="54" fill="var(--amber)" stroke="var(--ink)" stroke-width="2.5"/>`;
-  cols.forEach((c,i)=> g += `<text class="t-mono" x="${xs[i]}" y="64" style="font-size:19px;fill:var(--ink);font-weight:700">${c}</text>`);
+  cols.forEach((c,i)=> g += `<text class="t-mono" x="${xs[i]}" y="64" style="font-size:15px;fill:var(--ink);font-weight:700">${c}</text>`);
   const rows = [['100','Kiran','72000','Mumbai'],['101','Asha','50000','Pune'],['102','Dev','18000','Delhi']];
   rows.forEach((r,j)=>{
     const y = 84 + j*56, me = j === 1;
     if(me && st < 1) return;
     g += `<g class="${me ? an(1,st,'sv-pop') : ''}">
       <rect x="40" y="${y}" width="${W}" height="56" fill="${me?'var(--amber-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="${me?3:2}"/>
-      ${r.map((v,i)=>`<text class="t-mono" x="${xs[i]}" y="${y+36}" style="font-size:19px;fill:var(--ink)">${v}</text>`).join('')}</g>`;
+      ${r.map((v,i)=>`<text class="t-mono" x="${xs[i]}" y="${y+36}" style="font-size:15px;fill:var(--ink)">${v}</text>`).join('')}</g>`;
   });
   if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><path d="M935 168 h28" stroke="var(--ink)" stroke-width="2.6"/>
-     <text class="t-serif" x="930" y="228" text-anchor="end" style="font-size:22px">the row we follow all lecture</text></g>`;
+     <text class="t-serif" x="930" y="228" text-anchor="end" style="font-size:18px">the row we follow all lecture</text></g>`;
   return SV('0 0 1000 250', g);
 }
 
@@ -755,17 +772,17 @@ function sceneLock(st){
   g += person(890, 40, 'Asha', 'T2, the reader', 'var(--pencil)');
   const locked = st >= 1;
   g += boxT(360, 60, 280, 100, locked ? '40000 ?' : '50000', locked ? 'acc 101, write in progress' : 'acc 101, committed',
-            {fill: locked ? 'var(--flame-soft)' : 'var(--card)', fs:30});
+            {fill: locked ? 'var(--flame-soft)' : 'var(--card)', fs:24});
   if(locked){
     g += wire('M160 110 L 355 110', {color:'var(--flame)', dur:1.4});
     g += `<g class="${an(1,st,'sv-pop')}">${lockIco(640, 58, 1.1)}</g>
-          <text class="t-mono" x="258" y="95" text-anchor="middle" style="font-size:15px">UPDATE, not committed</text>`;
+          <text class="t-mono" x="258" y="95" text-anchor="middle" style="font-size:12px">UPDATE, not committed</text>`;
   }
   if(st >= 2){
     g += `<path d="M840 110 L 700 110" class="wire live"/>
       <circle cx="712" cy="110" r="7" fill="var(--pencil-2)" class="sv-blip"/>
-      <g class="${an(2,st,'sv-fade')}"><text class="t-serif" x="770" y="160" text-anchor="middle" style="font-size:26px;fill:var(--flame-ink)">T2 waits...</text>
-      <text class="t-mono" x="770" y="92" text-anchor="middle" style="font-size:15px">SELECT balance</text></g>`;
+      <g class="${an(2,st,'sv-fade')}"><text class="t-serif" x="770" y="160" text-anchor="middle" style="font-size:21px;fill:var(--flame-ink)">T2 waits...</text>
+      <text class="t-mono" x="770" y="92" text-anchor="middle" style="font-size:12px">SELECT balance</text></g>`;
   }
   return SV('0 0 1000 200', g);
 }
@@ -774,19 +791,19 @@ function sceneLock(st){
 function sceneMvcc(st){
   let g = person(110, 40, 'Ravi', 'T1, the writer', 'var(--flame)');
   g += person(890, 40, 'Asha', 'T2, the reader', 'var(--pencil)');
-  g += boxT(360, 30, 280, 70, 'v1: 50000', 'committed', {fs:26});
-  g += boxT(360, 116, 280, 70, 'v2: 40000', 'not yet committed', {fs:26, fill:'var(--amber-soft)', dash:true});
+  g += boxT(360, 30, 280, 70, 'v1: 50000', 'committed', {fs:21});
+  g += boxT(360, 116, 280, 70, 'v2: 40000', 'not yet committed', {fs:21, fill:'var(--amber-soft)', dash:true});
   g += wire('M160 150 L 355 150', {color:'var(--flame)', dur:1.6});
   if(st >= 1){
     g += wire('M840 66 L 645 66', {color:'var(--pencil-2)', dur:1.1});
     g += wire('M645 82 L 840 82', {color:'var(--leaf)', dur:1.1, delay:.55, live:false, stroke:'transparent'});
-    g += `<g class="${an(1,st,'sv-fade')}"><text class="t-serif" x="745" y="130" text-anchor="middle" style="font-size:26px;fill:var(--leaf)">50000, instantly</text></g>`;
+    g += `<g class="${an(1,st,'sv-fade')}"><text class="t-serif" x="745" y="130" text-anchor="middle" style="font-size:21px;fill:var(--leaf)">50000, instantly</text></g>`;
   }
   if(st >= 2){
     g += `<g class="${an(2,st,'sv-fade')}">${person(110, 230, 'Kiran', 'T3, another writer', 'var(--flame)')}
       <path d="M160 300 C 260 300, 300 180, 355 170" class="wire"/>
       ${lockIco(300, 238, .9)}
-      <text class="t-serif" x="440" y="300" style="font-size:24px;fill:var(--flame-ink)">writer vs. writer on the same row: still queues</text></g>`;
+      <text class="t-serif" x="440" y="300" style="font-size:19px;fill:var(--flame-ink)">writer vs. writer on the same row: still queues</text></g>`;
   }
   return SV(`0 0 1000 ${st>=2?370:200}`, g);
 }
@@ -797,9 +814,9 @@ function sceneSnapshot(st){
   for(let m=0;m<=5;m++) g += `<text class="t-sub" x="${80+m*168}" y="198" text-anchor="middle">${m} min</text>
       <line x1="${80+m*168}" y1="164" x2="${80+m*168}" y2="176" stroke="var(--ink)" stroke-width="2"/>`;
   g += `<rect x="80" y="112" width="840" height="40" rx="4" fill="var(--pencil-soft)" stroke="var(--ink)" stroke-width="2.4"/>
-    <text class="t-mono" x="100" y="138" style="font-size:17px;fill:var(--ink)">SELECT SUM(balance) FROM accounts;</text>
+    <text class="t-mono" x="100" y="138" style="font-size:14px;fill:var(--ink)">SELECT SUM(balance) FROM accounts;</text>
     <line x1="80" y1="30" x2="80" y2="160" stroke="var(--pencil-2)" stroke-width="3" stroke-dasharray="7 6"/>
-    <text class="t-serif" x="92" y="40" style="font-size:22px;fill:var(--pencil-2)">snapshot taken here</text>`;
+    <text class="t-serif" x="92" y="40" style="font-size:18px;fill:var(--pencil-2)">snapshot taken here</text>`;
   if(st >= 1){
     for(let i=0;i<34;i++){
       const x = 120 + i*23.5;
@@ -817,11 +834,11 @@ function sceneHeap(st){
     <text class="t-sub" x="148" y="46">heap page 0 of accounts</text>`;
   g += tup(160, 62, {v:'v1', data:'(101, Asha, 50000)', xmin:'500', xmax: st>=1?'802':'0', hiMax: st===1,
          st: st>=1?'dead':'live', w:540, tag: st>=1?'expired (pending)':'live', tagc: st>=1?PEND:VIS});
-  g += `<text class="t-mono" x="148" y="86" text-anchor="end" style="font-size:15px">(0,1)</text>`;
+  g += `<text class="t-mono" x="148" y="86" text-anchor="end" style="font-size:12px">(0,1)</text>`;
   if(st >= 1){
     g += tup(160, 146, {v:'v2', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', hiMin:true, st:'new', w:540,
            tag:'new, appended', tagc:PEND, cls:an(1,st,'sv-rise'), delay:200});
-    g += `<text class="t-mono" x="148" y="170" text-anchor="end" style="font-size:15px">(0,2)</text>
+    g += `<text class="t-mono" x="148" y="170" text-anchor="end" style="font-size:12px">(0,2)</text>
       <path d="M110 92 C 70 110, 70 150, 110 170" fill="none" stroke="var(--pencil-2)" stroke-width="2.6" stroke-dasharray="6 5"/>
       ${arrowHead(112, 171, 'r', 'var(--pencil-2)')}`;
   }
@@ -832,9 +849,9 @@ function sceneHeap(st){
 function sceneHeader(st){
   let g = tup(150, 90, {v:'v2', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', w:640, h:78, hiMin: st===0, hiMax: st===1});
   g += `<g><path d="M634 86 C 630 50, 560 36, 470 36" fill="none" stroke="var(--ink)" stroke-width="2.4"/>
-    <text class="t-serif" x="460" y="42" text-anchor="end" style="font-size:24px">xmin: the transaction that created me</text></g>`;
+    <text class="t-serif" x="460" y="42" text-anchor="end" style="font-size:19px">xmin: the transaction that created me</text></g>`;
   if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><path d="M742 172 C 740 205, 690 216, 610 216" fill="none" stroke="var(--ink)" stroke-width="2.4"/>
-    <text class="t-serif" x="600" y="222" text-anchor="end" style="font-size:24px">xmax: the transaction that expired me (0 = still current)</text></g>`;
+    <text class="t-serif" x="600" y="222" text-anchor="end" style="font-size:19px">xmax: the transaction that expired me (0 = still current)</text></g>`;
   return SV('0 0 1000 240', g);
 }
 
@@ -843,18 +860,18 @@ function sceneRule(st){
   let g = tup(20, 90, {v:'v', data:'a tuple', xmin:'xmin', xmax:'xmax', w:330, h:64});
   const gate = (x, n, t1, t2, on) => `<g>
     <rect x="${x}" y="40" width="200" height="164" rx="4" fill="${on?'var(--amber)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.6" ${on?'class="sv-glow"':''}/>
-    <text class="t-serif" x="${x+100}" y="80" text-anchor="middle" style="font-size:26px">Rule ${n}</text>
-    <text x="${x+100}" y="120" text-anchor="middle" style="font-size:17px;fill:var(--ink-2)">${t1}</text>
-    <text x="${x+100}" y="144" text-anchor="middle" style="font-size:17px;fill:var(--ink-2)">${t2}</text></g>`;
+    <text class="t-serif" x="${x+100}" y="80" text-anchor="middle" style="font-size:21px">Rule ${n}</text>
+    <text x="${x+100}" y="120" text-anchor="middle" style="font-size:14px;fill:var(--ink-2)">${t1}</text>
+    <text x="${x+100}" y="144" text-anchor="middle" style="font-size:14px;fill:var(--ink-2)">${t2}</text></g>`;
   if(st >= 0) g += gate(400, 1, 'xmin committed at or', 'before my snapshot', st===0);
-  else g += `<text class="t-serif" x="660" y="118" text-anchor="middle" style="font-size:34px;fill:var(--muted)">visible to my snapshot, or not?</text>
-    <text x="660" y="156" text-anchor="middle" style="font-size:18px;fill:var(--muted)">two numbers in, one yes/no answer out</text>`;
-  if(st >= 1) g += `<g class="${an(1,st,'sv-rise')}">${gate(640, 2, 'xmax is 0, or had not', 'committed by my snapshot', st===1)}
-     <text class="t-serif" x="620" y="130" text-anchor="middle" style="font-size:22px">AND</text></g>`;
+  else g += `<text class="t-serif" x="660" y="118" text-anchor="middle" style="font-size:27px;fill:var(--muted)">visible to my snapshot, or not?</text>
+    <text x="660" y="156" text-anchor="middle" style="font-size:14px;fill:var(--muted)">two numbers in, one yes/no answer out</text>`;
+  if(st >= 1) g += `<g class="${an(1,st,'sv-rise')}">${gate(670, 2, 'xmax is 0, or had not', 'committed by my snapshot', st===1)}
+     <text class="t-serif" x="635" y="130" text-anchor="middle" style="font-size:18px">AND</text></g>`;
   if(st >= 2){
     g += wire('M355 122 L 400 122', {live:false});
     g += wire('M300 225 L 930 225', {color:'var(--leaf)', dur:1.6});
-    g += `<g class="${an(2,st,'sv-pop')}"><text class="t-serif" x="930" y="130" text-anchor="end" style="font-size:30px;fill:var(--leaf)">visible</text></g>`;
+    g += `<g class="${an(2,st,'sv-pop')}"><text class="t-serif" x="990" y="130" text-anchor="end" style="font-size:24px;fill:var(--leaf)">visible</text></g>`;
   }
   return SV('0 0 1000 245', g);
 }
@@ -874,7 +891,7 @@ const TRACE = [
    rd:'802 commits. Transaction 804 reads and sees 40000; v1 is now dead.'}
 ];
 function sceneTuples(state, st, fresh){
-  let g = `<text class="t-serif" x="40" y="34" style="font-size:24px;fill:var(--pencil-2)">${state.rd}</text>`;
+  let g = `<text class="t-serif" x="40" y="34" style="font-size:19px;fill:var(--pencil-2)">${state.rd}</text>`;
   state.tu.forEach((t,i)=> g += tup(40, 54 + i*74, Object.assign({w:600, cls: fresh ? 'sv-rise' : '', delay:i*120}, t)));
   return SV(`0 0 1000 ${54 + state.tu.length*74 + 6}`, g);
 }
@@ -887,7 +904,7 @@ function sceneDelete(st){
   if(st >= 2){
     g += `<g class="${an(2,st,'sv-rise')}">
       ${boxT(40, 160, 380, 76, 'Month-end report', 'snapshot taken before 910 committed', {fill:'var(--pencil-soft)'})}
-      <text class="t-serif" x="460" y="208" style="font-size:26px;fill:var(--leaf)">still counts account 102</text></g>`;
+      <text class="t-serif" x="460" y="208" style="font-size:21px;fill:var(--leaf)">still counts account 102</text></g>`;
     g += wire('M230 158 L 230 104', {color:'var(--pencil-2)', dur:1.2});
   }
   return SV(`0 0 1000 ${st>=2?250:150}`, g);
@@ -901,7 +918,7 @@ function sceneRollback(st){
   g += tup(40, 110, {v:'v2', data:'(101, Asha, 45000)', xmin:'900', xmax:'0', hiMin:true, w:600,
                      st: ab?'gone':'new', tag: ab?'invisible forever':'uncommitted', tagc: ab?INV:PEND});
   g += boxT(40, 200, 250, 64, 'txn 900', ab ? 'ROLLBACK: aborted' : 'running', {fill: ab?'var(--flame-soft)':'var(--amber-soft)'});
-  if(st >= 2) g += `<g class="${an(2,st,'sv-fade')}"><text class="t-serif" x="320" y="244" style="font-size:28px">Nothing to undo. No undo log was ever written.</text></g>`;
+  if(st >= 2) g += `<g class="${an(2,st,'sv-fade')}"><text class="t-serif" x="320" y="244" style="font-size:22px">Nothing to undo. No undo log was ever written.</text></g>`;
   return SV('0 0 1000 280', g);
 }
 
@@ -946,12 +963,12 @@ function sceneVacuum(st){
 function sceneBloat(st){
   let g = `<text class="t-sub" x="40" y="30">accounts heap, in tuples</text>
     <rect x="40" y="46" width="440" height="60" rx="3" fill="var(--leaf-soft)" stroke="var(--ink)" stroke-width="2.4"/>
-    <text class="t-serif" x="260" y="86" text-anchor="middle" style="font-size:26px">1M live tuples</text>`;
+    <text class="t-serif" x="260" y="86" text-anchor="middle" style="font-size:21px">1M live tuples</text>`;
   if(st >= 1){
     g += `<rect class="${an(1,st,'sv-rise')}" x="480" y="46" width="440" height="60" rx="3" fill="var(--flame-soft)" stroke="var(--ink)" stroke-width="2.4"/>
-      <text class="t-serif ${an(1,st,'sv-fade')}" x="700" y="86" text-anchor="middle" style="font-size:26px">1M dead tuples</text>
+      <text class="t-serif ${an(1,st,'sv-fade')}" x="700" y="86" text-anchor="middle" style="font-size:21px">1M dead tuples</text>
       <path d="M40 124 H920" stroke="var(--ink)" stroke-width="2"/>${arrowHead(920,124)}
-      <text class="t-serif" x="480" y="154" text-anchor="middle" style="font-size:24px">about 2x the table size on disk</text>`;
+      <text class="t-serif" x="480" y="154" text-anchor="middle" style="font-size:19px">about 2x the table size on disk</text>`;
   }
   return SV('0 0 1000 166', g);
 }
@@ -964,7 +981,7 @@ function sceneSaw(st){
     <line x1="60" y1="30" x2="60" y2="190" stroke="var(--ink)" stroke-width="2.4"/>
     <text class="t-sub" x="70" y="26">n_dead_tup</text><text class="t-sub" x="940" y="212" text-anchor="end">time</text>
     <line x1="60" y1="${thr}" x2="940" y2="${thr}" stroke="var(--flame)" stroke-width="2.4" stroke-dasharray="8 6"/>
-    <text x="935" y="${thr-8}" text-anchor="end" style="font-size:16px;fill:var(--flame-ink)">autovacuum threshold${lowT?' (lower scale factor)':''}</text>`;
+    <text x="935" y="${thr-8}" text-anchor="end" style="font-size:13px;fill:var(--flame-ink)">autovacuum threshold${lowT?' (lower scale factor)':''}</text>`;
   const teeth = lowT ? 8 : 4, w = 880/teeth;
   let d = 'M60 190';
   for(let i=0;i<teeth;i++){ d += ` L${60+(i+1)*w} ${thr} L${60+(i+1)*w} 190`; }
@@ -974,21 +991,21 @@ function sceneSaw(st){
 
 /* PostgreSQL keeps old versions in the heap; Oracle moves them to undo */
 function sceneOracle(st){
-  let g = `<text class="t-serif" x="250" y="32" text-anchor="middle" style="font-size:26px">PostgreSQL</text>
-    ${st>=1?'<text class="t-serif" x="750" y="32" text-anchor="middle" style="font-size:26px">Oracle</text>':''}
+  let g = `<text class="t-serif" x="250" y="32" text-anchor="middle" style="font-size:21px">PostgreSQL</text>
+    ${st>=1?'<text class="t-serif" x="750" y="32" text-anchor="middle" style="font-size:21px">Oracle</text>':''}
     <line x1="500" y1="14" x2="500" y2="210" stroke="var(--line)" stroke-width="3" stroke-dasharray="7 6"/>`;
   g += `<rect x="70" y="50" width="360" height="150" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
     <text class="t-sub" x="84" y="72">the table (heap)</text>
-    ${boxT(90, 84, 320, 46, 'v1: 50000 (old)', '', {fill:'var(--flame-soft)', fs:20})}
-    ${boxT(90, 140, 320, 46, 'v2: 40000 (new)', '', {fill:'var(--leaf-soft)', fs:20})}`;
-  if(st < 1) g += `<text class="t-serif" x="540" y="110" style="font-size:24px;fill:var(--flame-ink)">every UPDATE leaves the old</text>
-    <text class="t-serif" x="540" y="142" style="font-size:24px;fill:var(--flame-ink)">version inside the table</text>`;
+    ${boxT(90, 84, 320, 46, 'v1: 50000 (old)', '', {fill:'var(--flame-soft)', fs:16})}
+    ${boxT(90, 140, 320, 46, 'v2: 40000 (new)', '', {fill:'var(--leaf-soft)', fs:16})}`;
+  if(st < 1) g += `<text class="t-serif" x="540" y="110" style="font-size:19px;fill:var(--flame-ink)">every UPDATE leaves the old</text>
+    <text class="t-serif" x="540" y="142" style="font-size:19px;fill:var(--flame-ink)">version inside the table</text>`;
   if(st >= 1) g += `<rect x="560" y="50" width="380" height="72" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
     <text class="t-sub" x="574" y="70">the table</text>
-    ${boxT(580, 76, 340, 40, 'row: 40000 (overwritten)', '', {fill:'var(--leaf-soft)', fs:19})}
+    ${boxT(580, 76, 340, 40, 'row: 40000 (overwritten)', '', {fill:'var(--leaf-soft)', fs:15})}
     <rect x="560" y="150" width="380" height="58" rx="4" fill="var(--pencil-soft)" stroke="var(--ink)" stroke-width="2.4"/>
     <text class="t-sub" x="574" y="170">undo segment</text>
-    <text class="t-serif" x="750" y="196" text-anchor="middle" style="font-size:20px">old copy: 50000</text>
+    <text class="t-serif" x="750" y="196" text-anchor="middle" style="font-size:16px">old copy: 50000</text>
     <path d="M750 120 L750 148" stroke="var(--pencil-2)" stroke-width="2.6"/>${arrowHead(750,150,'d','var(--pencil-2)')}`;
   return SV('0 0 1000 220', g);
 }
@@ -1003,8 +1020,8 @@ function scenePipe(lit, cum){
   let g = boxT(10, 70, 120, 70, 'SQL', 'text', {fill:'var(--amber-soft)'});
   STAGES.forEach((s,i)=>{
     const x = 170 + i*205, on = cum ? i < lit : i === lit - 1;
-    g += boxT(x, 60, 170, 90, s.t, s.q, {fill: on ? 'var(--amber)' : 'var(--card)', glow: i === lit-1, fs:24, sc:'var(--ink-2)'});
-    g += `<text class="t-mono" x="${x+85}" y="182" text-anchor="middle" style="font-size:15px;fill:${on?'var(--ink)':'var(--muted)'}">${s.o}</text>`;
+    g += boxT(x, 60, 170, 90, s.t, s.q, {fill: on ? 'var(--amber)' : 'var(--card)', glow: i === lit-1, fs:19, sc:'var(--ink-2)'});
+    g += `<text class="t-mono" x="${x+85}" y="182" text-anchor="middle" style="font-size:12px;fill:${on?'var(--ink)':'var(--muted)'}">${s.o}</text>`;
     g += `<path d="M${x-35} 105 H${x-4}" stroke="var(--ink)" stroke-width="2.4"/>${arrowHead(x-3,105)}`;
   });
   if(lit >= 1 && !cum){
@@ -1044,7 +1061,7 @@ function sceneTree(st){
     const w = n.t.replace('&gt;','>').length*10.5 + 30;
     g += `<g class="${an(n.s,st,'sv-pop')}"><rect x="${n.x-w/2}" y="${n.y-20}" width="${w}" height="40" rx="4"
       fill="${n.op?'var(--amber)':n.leaf?'var(--card)':'var(--pencil-soft)'}" stroke="var(--ink)" stroke-width="2.3"/>
-      <text class="t-mono" x="${n.x}" y="${n.y+6}" text-anchor="middle" style="font-size:17px;fill:var(--ink);font-weight:${n.leaf?400:700}">${n.t}</text></g>`; });
+      <text class="t-mono" x="${n.x}" y="${n.y+6}" text-anchor="middle" style="font-size:14px;fill:var(--ink);font-weight:${n.leaf?400:700}">${n.t}</text></g>`; });
   return SV('0 0 1000 330', g);
 }
 
@@ -1055,8 +1072,8 @@ function sceneCatalog(st){
   let g = boxT(20, 100, 220, 90, 'query tree', 'names, not yet checked', {fill:'var(--pencil-soft)'});
   cats.forEach((c,i)=>{
     const y = 10 + i*72, on = st === i, done = st > i;
-    g += boxT(560, y, 260, 58, c[0], c[1], {fill: on ? 'var(--amber)' : done ? 'var(--leaf-soft)' : 'var(--card)', fs:20, ss:14, glow:on});
-    g += `<text class="t-serif" x="840" y="${y+37}" style="font-size:22px;fill:${done?'var(--leaf)':'var(--muted)'}">${done?'checked':''}</text>`;
+    g += boxT(560, y, 260, 58, c[0], c[1], {fill: on ? 'var(--amber)' : done ? 'var(--leaf-soft)' : 'var(--card)', fs:16, ss:11, glow:on});
+    g += `<text class="t-serif" x="840" y="${y+37}" style="font-size:18px;fill:${done?'var(--leaf)':'var(--muted)'}">${done?'checked':''}</text>`;
     if(on) g += wire(`M240 145 C 400 145, 420 ${y+29}, 556 ${y+29}`, {color:'var(--pencil-2)', dur:1.3});
   });
   return SV('0 0 1000 300', g);
@@ -1064,23 +1081,23 @@ function sceneCatalog(st){
 
 /* view substitution: the view node is replaced by its definition */
 function sceneView(st){
-  let g = boxT(170, 10, 300, 56, 'SELECT holder_name', '', {fs:24, fill:'var(--pencil-soft)'});
+  let g = boxT(170, 10, 300, 56, 'SELECT holder_name', '', {fs:19, fill:'var(--pencil-soft)'});
   g += `<path d="M320 66 L320 100" stroke="var(--ink)" stroke-width="2.4"/>`;
   if(st < 2){
-    g += boxT(180, 100, 280, 60, 'FROM pune_hnw', 'a view: a stored query', {fs:24, ss:15, fill:'var(--amber)', glow: st===1, sc:'var(--ink-2)'});
+    g += boxT(180, 100, 280, 60, 'FROM pune_hnw', 'a view: a stored query', {fs:19, ss:12, fill:'var(--amber)', glow: st===1, sc:'var(--ink-2)'});
   }
   if(st < 0){
     g += `<path d="M320 160 L320 206" stroke="var(--ink)" stroke-width="2.4" stroke-dasharray="6 5"/>`;
-    g += boxT(120, 206, 400, 70, 'rows stored in pune_hnw: none', 'so what does the planner scan?', {fs:22, ss:16, dash:true, fill:'var(--flame-soft)'});
+    g += boxT(120, 206, 400, 70, 'rows stored in pune_hnw: none', 'so what does the planner scan?', {fs:18, ss:13, dash:true, fill:'var(--flame-soft)'});
   }
   if(st === 1){
-    g += `<g class="sv-rise">${boxT(20, 210, 600, 84, 'the view definition', "SELECT * FROM accounts WHERE branch = 'Pune' AND balance &gt; 100000", {fs:22, ss:15, dash:true})}</g>`;
+    g += `<g class="sv-rise">${boxT(20, 210, 600, 84, 'the view definition', "SELECT * FROM accounts WHERE branch = 'Pune' AND balance &gt; 100000", {fs:18, ss:12, dash:true})}</g>`;
     g += wire('M320 208 L 320 162', {color:'var(--pencil-2)', dur:1.2});
   }
   if(st >= 2){
-    g += `<g class="${an(2,st,'sv-pop')}">${boxT(180, 100, 280, 60, 'FROM accounts', 'the base table', {fs:24, ss:15, fill:'var(--leaf-soft)'})}
+    g += `<g class="${an(2,st,'sv-pop')}">${boxT(180, 100, 280, 60, 'FROM accounts', 'the base table', {fs:19, ss:12, fill:'var(--leaf-soft)'})}
       <path d="M320 160 L320 200" stroke="var(--ink)" stroke-width="2.4"/>
-      ${boxT(20, 200, 600, 60, "WHERE branch = 'Pune' AND balance &gt; 100000", '', {fs:21})}</g>`;
+      ${boxT(20, 200, 600, 60, "WHERE branch = 'Pune' AND balance &gt; 100000", '', {fs:17})}</g>`;
   }
   return SV('0 0 640 305', g);
 }
@@ -1093,8 +1110,8 @@ function sceneFunnel(st, blind){
     const w = blind ? 680 - i*120 : Math.max(40, 680*b[1]);
     g += `<g class="${st>=0?'sv-rise':''}" ${D(i*260)}><rect x="40" y="${16+i*62}" width="${w}" height="44" rx="3"
       fill="${blind?'var(--paper-2)':i===2?'var(--amber)':i===1?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.3" ${blind&&i?'stroke-dasharray="8 6"':''}/>
-      <text class="t-serif" x="${w+56}" y="${48+i*62}" style="font-size:24px">${blind ? (i ? '? rows' : '1,000,000 rows') : b[0]}</text>
-      <text class="t-sub" x="${w+56}" y="${30+i*62}" style="font-size:14px">${b[2]}</text></g>`;
+      <text class="t-serif" x="${w+56}" y="${48+i*62}" style="font-size:19px">${blind ? (i ? '? rows' : '1,000,000 rows') : b[0]}</text>
+      <text class="t-sub" x="${w+56}" y="${30+i*62}" style="font-size:11px">${b[2]}</text></g>`;
   });
   return SV('0 0 1000 206', g);
 }
@@ -1105,8 +1122,8 @@ function sceneScanKind(k){
   const pages = (y, hiFn, n=12) => { let s=''; for(let i=0;i<n;i++){ const h = hiFn(i);
     s += `<rect class="nofx" x="${60+i*74}" y="${y}" width="62" height="58" rx="3" fill="${h?'var(--amber)':'var(--card)'}" stroke="var(--ink)" stroke-width="2"/>`; }
     return s; };
-  const tree = () => `<g>${boxT(420, 10, 160, 40, 'B-tree root', '', {fs:18, fill:'var(--pencil-soft)'})}
-      ${boxT(250, 70, 140, 36, 'branch', '', {fs:16})}${boxT(610, 70, 140, 36, 'branch', '', {fs:16})}
+  const tree = () => `<g>${boxT(420, 10, 160, 40, 'B-tree root', '', {fs:14, fill:'var(--pencil-soft)'})}
+      ${boxT(250, 70, 140, 36, 'branch', '', {fs:13})}${boxT(610, 70, 140, 36, 'branch', '', {fs:13})}
       <path d="M470 50 L330 70 M530 50 L680 70" stroke="var(--ink)" stroke-width="2"/></g>`;
   if(k === 0){
     g += `<text class="t-sub" x="60" y="40">every heap page, first to last</text>${pages(60, ()=>false)}
@@ -1117,8 +1134,8 @@ function sceneScanKind(k){
     g += `<text class="t-sub" x="940" y="170" text-anchor="end">one random heap hop per match</text>`;
   } else if(k === 2){
     g += tree() + `<g opacity=".35">${pages(180, ()=>false)}</g>
-      ${boxT(760, 116, 200, 44, 'visibility map', 'all-visible', {fs:16, ss:13, fill:'var(--leaf-soft)'})}
-      <text class="t-serif" x="60" y="150" style="font-size:22px;fill:var(--leaf)">answered from the index alone</text>`;
+      ${boxT(760, 116, 200, 44, 'visibility map', 'all-visible', {fs:13, ss:10, fill:'var(--leaf-soft)'})}
+      <text class="t-serif" x="60" y="150" style="font-size:18px;fill:var(--leaf)">answered from the index alone</text>`;
   } else {
     g += `<text class="t-sub" x="60" y="26">1. collect matching locations into a bitmap</text>`;
     for(let i=0;i<24;i++) g += `<rect class="nofx" x="${60+i*37}" y="36" width="30" height="30" fill="${[1,2,6,7,9,15,16,20].includes(i)?'var(--pencil)':'var(--card)'}" stroke="var(--ink)" stroke-width="1.6"/>`;
@@ -1133,19 +1150,19 @@ function sceneJoin(k){
   let g = '';
   if(k === 0){
     g += `<text class="t-sub" x="60" y="26">outer: 10 Pune accounts</text><text class="t-sub" x="600" y="26">inner: transactions, indexed on acc_no</text>`;
-    [0,1,2].forEach(i=> g += boxT(60, 40+i*60, 200, 46, 'acc '+(103+i*2), '', {fs:18}));
-    g += boxT(600, 90, 300, 60, 'index on acc_no', '', {fs:20, fill:'var(--pencil-soft)'});
+    [0,1,2].forEach(i=> g += boxT(60, 40+i*60, 200, 46, 'acc '+(103+i*2), '', {fs:14}));
+    g += boxT(600, 90, 300, 60, 'index on acc_no', '', {fs:16, fill:'var(--pencil-soft)'});
     [0,1,2].forEach(i=> g += wire(`M260 ${63+i*60} C 420 ${63+i*60}, 440 120, 596 120`, {color:'var(--pencil-2)', dur:1.5, delay:i*.5}));
   } else if(k === 1){
     g += `<text class="t-sub" x="60" y="26">1. build a hash table on the smaller input</text><text class="t-sub" x="600" y="26">2. scan the bigger input, probing</text>`;
-    for(let b=0;b<4;b++) g += boxT(60, 40+b*44, 260, 36, 'bucket '+b, '', {fs:16, fill: b===2?'var(--amber)':'var(--card)'});
-    for(let r=0;r<5;r++) g += boxT(620, 40+r*36, 280, 30, 'txn row '+(r+1), '', {fs:15});
+    for(let b=0;b<4;b++) g += boxT(60, 40+b*44, 260, 36, 'bucket '+b, '', {fs:13, fill: b===2?'var(--amber)':'var(--card)'});
+    for(let r=0;r<5;r++) g += boxT(620, 40+r*36, 280, 30, 'txn row '+(r+1), '', {fs:12});
     g += wire('M616 127 C 480 127, 460 145, 324 145', {color:'var(--flame)', dur:1.3});
   } else {
     g += `<text class="t-sub" x="60" y="26">accounts, sorted by acc_no</text><text class="t-sub" x="600" y="26">transactions, sorted by acc_no</text>`;
     const a = [101,103,105,106], b = [101,101,103,105,106];
-    a.forEach((v,i)=> g += boxT(60, 40+i*42, 200, 34, String(v), '', {fs:17}));
-    b.forEach((v,i)=> g += boxT(640, 40+i*36, 200, 30, String(v), '', {fs:16}));
+    a.forEach((v,i)=> g += boxT(60, 40+i*42, 200, 34, String(v), '', {fs:14}));
+    b.forEach((v,i)=> g += boxT(640, 40+i*36, 200, 30, String(v), '', {fs:13}));
     b.forEach((v,i)=>{ const ai = a.indexOf(v); g += `<path class="sv-draw" style="--len:500;animation-delay:${i*180}ms" d="M260 ${57+ai*42} L640 ${55+i*36}" stroke="var(--leaf)" stroke-width="2.4" fill="none"/>`; });
   }
   return SV('0 0 1000 230', g);
@@ -1157,18 +1174,18 @@ function sceneCost(st){
              ['Bitmap Heap Scan', 9000, 'medium selectivity, pages visited in order']];
   let g = '';
   if(st === 0){
-    C.forEach((c,i)=> g += `<text class="t-serif" x="250" y="${48+i*72}" text-anchor="end" style="font-size:22px">${c[0]}</text>
+    C.forEach((c,i)=> g += `<text class="t-serif" x="250" y="${48+i*72}" text-anchor="end" style="font-size:18px">${c[0]}</text>
       <rect x="270" y="${16+i*72}" width="600" height="46" rx="3" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2" stroke-dasharray="8 6"/>
-      <text class="t-serif" x="570" y="${48+i*72}" text-anchor="middle" style="font-size:26px;fill:var(--muted)">cost = ?</text>`);
+      <text class="t-serif" x="570" y="${48+i*72}" text-anchor="middle" style="font-size:21px;fill:var(--muted)">cost = ?</text>`);
     return SV('0 0 1000 230', g);
   }
   C.forEach((c,i)=>{
     if(st < i+1) return;
     const w = 600 * c[1]/60000, y = 16 + i*72, win = i === 2 && st >= 3;
-    g += `<text class="t-serif" x="250" y="${y+32}" text-anchor="end" style="font-size:22px">${c[0]}</text>
+    g += `<text class="t-serif" x="250" y="${y+32}" text-anchor="end" style="font-size:18px">${c[0]}</text>
       <rect class="${an(i+1,st,'sv-rise')}" x="270" y="${y}" width="${w}" height="46" rx="3" fill="${win?'var(--leaf)':i===1?'var(--flame-soft)':'var(--pencil-soft)'}" stroke="var(--ink)" stroke-width="2.3"/>
-      <text class="t-mono" x="${280+w}" y="${y+22}" style="font-size:17px;fill:var(--ink);font-weight:700">about ${c[1].toLocaleString('en-US')}${i===1?'+':''}${win?'  (winner)':''}</text>
-      <text x="${280+w}" y="${y+42}" style="font-size:14px;fill:var(--muted)">${c[2]}</text>`;
+      <text class="t-mono" x="${w>420?260+w:280+w}" y="${y+22}" ${w>420?'text-anchor="end"':''} style="font-size:14px;fill:var(--ink);font-weight:700">about ${c[1].toLocaleString('en-US')}${i===1?'+':''}${win?'  (winner)':''}</text>
+      <text x="${w>420?260+w:280+w}" y="${y+40}" ${w>420?'text-anchor="end"':''} style="font-size:11px;fill:${w>420?'var(--ink-2)':'var(--muted)'}">${c[2]}</text>`;
   });
   return SV('0 0 1000 230', g);
 }
@@ -1177,13 +1194,13 @@ function sceneCost(st){
 function sceneVolcano(st){
   const nodes = [['Limit (3)', 20], ['Sort (balance DESC)', 110], ['Seq Scan on accounts', 200]];
   let g = boxT(60, 20, 160, 60, 'client', '', {fill:'var(--pencil-soft)'});
-  nodes.forEach((n,i)=> g += boxT(360, n[1], 300, 64, n[0], 'open() / next() / close()', {fs:21, ss:14}));
+  nodes.forEach((n,i)=> g += boxT(360, n[1], 300, 64, n[0], 'open() / next() / close()', {fs:17, ss:11}));
   g += `<path d="M220 50 H356" stroke="var(--ink)" stroke-width="2.2"/>`;
   if(st >= 1){
     g += wire('M470 84 L470 108', {color:'var(--pencil-2)', dur:.8}) + wire('M470 174 L470 198', {color:'var(--pencil-2)', dur:.8, delay:.3});
     g += wire('M560 198 L560 174', {color:'var(--leaf)', dur:.8, delay:.6, live:false}) + wire('M560 108 L560 84', {color:'var(--leaf)', dur:.8, delay:.9, live:false});
-    g += `<g class="${an(1,st,'sv-fade')}"><text class="t-serif" x="700" y="130" style="font-size:22px;fill:var(--pencil-2)">next() calls cascade down</text>
-      <text class="t-serif" x="700" y="166" style="font-size:22px;fill:var(--leaf)">rows bubble up, one at a time</text></g>`;
+    g += `<g class="${an(1,st,'sv-fade')}"><text class="t-serif" x="700" y="130" style="font-size:18px;fill:var(--pencil-2)">next() calls cascade down</text>
+      <text class="t-serif" x="700" y="166" style="font-size:18px;fill:var(--leaf)">rows bubble up, one at a time</text></g>`;
   }
   return SV('0 0 1000 280', g);
 }
@@ -1199,23 +1216,23 @@ const XROWS = [
   ['Arjun', 150000, 'Pune', 'new', 'invisible: xmin not committed'],
   ['Tara', 105000, 'Pune', 'vis', 'kept']];
 function sceneExec(st, raw){
-  let g = boxT(30, 40, 190, 54, 'Limit (3)', '', {fs:21, glow: st===1||st===3});
-  g += boxT(30, 120, 190, 54, 'Sort', 'pipeline-breaker', {fs:21, ss:13, glow: st===2});
-  g += boxT(30, 200, 190, 54, 'Seq Scan', 'filter + MVCC check', {fs:21, ss:13, glow: st===2});
+  let g = boxT(30, 40, 190, 54, 'Limit (3)', '', {fs:17, glow: st===1||st===3});
+  g += boxT(30, 120, 190, 54, 'Sort', 'pipeline-breaker', {fs:17, ss:10, glow: st===2});
+  g += boxT(30, 200, 190, 54, 'Seq Scan', 'filter + MVCC check', {fs:17, ss:10, glow: st===2});
   g += `<path d="M125 94 V120 M125 174 V200" stroke="var(--ink)" stroke-width="2.2"/>`;
   if(st >= 2 || raw){
     XROWS.forEach((r,i)=>{
       const ok = !raw && r[4] === 'kept', y = 40 + i*29;
       g += `<g class="${an(2,st,'sv-rise')}" ${D(i*140)}>
         <rect class="nofx" x="270" y="${y}" width="260" height="24" rx="3" fill="${ok?'var(--leaf-soft)':'var(--paper-2)'}" stroke="var(--ink)" stroke-width="1.5"/>
-        <text class="t-mono" x="280" y="${y+17}" style="font-size:14px;fill:var(--ink)">${r[0]}, ${r[1].toLocaleString('en-US')}, ${r[2]}</text>
-        <text x="545" y="${y+17}" style="font-size:15px;fill:${ok?'var(--leaf)':r[3]==='vis'?'var(--muted)':'var(--flame-ink)'}">${raw ? (r[3]==='del' ? 'deleted by a committed txn' : r[3]==='new' ? 'inserted, not committed' : '') : r[4]}</text></g>`;
+        <text class="t-mono" x="280" y="${y+17}" style="font-size:11px;fill:var(--ink)">${r[0]}, ${r[1].toLocaleString('en-US')}, ${r[2]}</text>
+        <text x="545" y="${y+17}" style="font-size:12px;fill:${ok?'var(--leaf)':r[3]==='vis'?'var(--muted)':'var(--flame-ink)'}">${raw ? (r[3]==='del' ? 'deleted by a committed txn' : r[3]==='new' ? 'inserted, not committed' : '') : r[4]}</text></g>`;
     });
   }
   if(st >= 3){
     const top = XROWS.filter(r=>r[4]==='kept').sort((a,b)=>b[1]-a[1]).slice(0,3);
     g += `<g class="${an(3,st,'sv-rise')}"><text class="t-sub" x="820" y="58">returned to the client</text>
-      ${top.map((r,i)=>boxT(820, 70+i*50, 170, 40, r[0]+', '+r[1].toLocaleString('en-US'), '', {fs:17, fill:'var(--amber)'})).join('')}</g>`;
+      ${top.map((r,i)=>boxT(820, 70+i*50, 170, 40, r[0]+', '+r[1].toLocaleString('en-US'), '', {fs:14, fill:'var(--amber)'})).join('')}</g>`;
     g += wire('M220 60 C 240 14, 700 14, 816 84', {color:'var(--leaf)', dur:1.6});
   }
   return SV('0 0 1000 280', g);
@@ -1238,16 +1255,16 @@ function sceneSum(k, good){
     const shown = good && i === 3 ? 40000 : (i === 0 ? b : now);   /* acc 1 was read before the transfer */
     g += `<rect x="${x}" y="90" width="205" height="74" rx="4" fill="${isRead?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.4"/>
       <text class="t-sub" x="${x+14}" y="112">acc ${i+1}</text>
-      <text class="t-serif" x="${x+102}" y="150" text-anchor="middle" style="font-size:30px">${now.toLocaleString('en-US')}</text>`;
-    if(isRead) g += `<text x="${x+102}" y="190" text-anchor="middle" style="font-size:17px;fill:var(--pencil-2)">report read ${shown.toLocaleString('en-US')}</text>`;
-    if(good && i === 3) g += `<g class="sv-rise">${boxT(x, 200, 205, 58, 'old version: 40,000', 'what the snapshot sees', {fs:18, ss:13, fill:'var(--leaf-soft)'})}</g>`;
+      <text class="t-serif" x="${x+102}" y="150" text-anchor="middle" style="font-size:24px">${now.toLocaleString('en-US')}</text>`;
+    if(isRead) g += `<text x="${x+102}" y="190" text-anchor="middle" style="font-size:14px;fill:var(--pencil-2)">report read ${shown.toLocaleString('en-US')}</text>`;
+    if(good && i === 3) g += `<g class="sv-rise">${boxT(x, 200, 205, 58, 'old version: 40,000', 'what the snapshot sees', {fs:14, ss:10, fill:'var(--leaf-soft)'})}</g>`;
   });
   if(read) g += `<rect class="nofx" x="${34 + read*235}" y="82" width="6" height="90" fill="var(--amber-2)"/>
     <text class="t-sub" x="${36 + read*235}" y="76" text-anchor="middle">scan</text>`;
   if(moved){
     g += `<path class="${an(2,k,'sv-draw')}" style="--len:900" d="M140 86 C 300 10, 700 10, 850 86" fill="none" stroke="var(--flame)" stroke-width="3"/>
       ${arrowHead(850, 86, 'd', 'var(--flame)')}
-      <text class="t-serif" x="495" y="18" text-anchor="middle" style="font-size:22px;fill:var(--flame-ink)">transfer: 5,000 from acc 1 to acc 4, committed</text>`;
+      <text class="t-serif" x="495" y="18" text-anchor="middle" style="font-size:18px;fill:var(--flame-ink)">transfer: 5,000 from acc 1 to acc 4, committed</text>`;
   }
   const total = good ? 100000 : 10000 + 20000 + (read >= 3 ? 30000 : 0) + (read >= 4 ? 45000 : 0);
   let msg, col = 'var(--ink)';
@@ -1255,7 +1272,7 @@ function sceneSum(k, good){
   else if(read < 4){ msg = `report's running sum: ${total.toLocaleString('en-US')}`; }
   else if(good){ msg = 'report total: 100,000. Correct.'; col = 'var(--leaf)'; }
   else { msg = 'report total: 105,000. Money that never existed.'; col = 'var(--flame-ink)'; }
-  g += `<text class="t-serif" x="495" y="${good?300:250}" text-anchor="middle" style="font-size:30px;fill:${col}">${msg}</text>`;
+  g += `<text class="t-serif" x="495" y="${good?300:250}" text-anchor="middle" style="font-size:24px;fill:${col}">${msg}</text>`;
   return SV(`0 0 1000 ${good?315:265}`, g);
 }
 
@@ -1264,28 +1281,28 @@ function sceneOverwrite(k){
   let g = `<rect x="130" y="20" width="620" height="110" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.6"/>
     <text class="t-sub" x="148" y="44">heap page 0: one slot per row</text>
     <rect x="160" y="56" width="560" height="56" rx="4" fill="${k?'var(--flame-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.4"/>
-    <text class="t-mono" x="180" y="92" style="font-size:20px;fill:var(--ink)">(101, Asha, </text>
-    <text class="t-mono" x="330" y="92" style="font-size:20px;fill:${k?'var(--muted)':'var(--ink)'}">50000</text>
-    <text class="t-mono" x="400" y="92" style="font-size:20px;fill:var(--ink)">)</text>`;
+    <text class="t-mono" x="180" y="92" style="font-size:16px;fill:var(--ink)">(101, Asha, </text>
+    <text class="t-mono" x="330" y="92" style="font-size:16px;fill:${k?'var(--muted)':'var(--ink)'}">50000</text>
+    <text class="t-mono" x="400" y="92" style="font-size:16px;fill:var(--ink)">)</text>`;
   g += person(880, 20, 'Asha', 'needs 50000', 'var(--pencil)');
   if(k >= 1){
     g += `<g class="${an(1,k,'sv-fade')}"><line x1="326" y1="86" x2="394" y2="86" stroke="var(--flame)" stroke-width="3.5"/>
-      <text class="t-mono" x="430" y="92" style="font-size:22px;fill:var(--flame-ink);font-weight:700">40000 ?</text>
-      <text class="t-serif" x="160" y="170" style="font-size:24px;fill:var(--flame-ink)">Ravi overwrote it in place, and has not committed.</text>
-      <text class="t-serif" x="160" y="204" style="font-size:24px;fill:var(--flame-ink)">Asha can only wait, or read a dirty 40000.</text></g>`;
-    g += `<path d="M836 80 C 800 80, 780 84, 740 84" class="wire live"/><text class="t-serif" x="790" y="66" style="font-size:30px;fill:var(--flame-ink)">?</text>`;
+      <text class="t-mono" x="430" y="92" style="font-size:18px;fill:var(--flame-ink);font-weight:700">40000 ?</text>
+      <text class="t-serif" x="160" y="170" style="font-size:19px;fill:var(--flame-ink)">Ravi overwrote it in place, and has not committed.</text>
+      <text class="t-serif" x="160" y="204" style="font-size:19px;fill:var(--flame-ink)">Asha can only wait, or read a dirty 40000.</text></g>`;
+    g += `<path d="M836 80 C 800 80, 780 84, 740 84" class="wire live"/><text class="t-serif" x="790" y="66" style="font-size:24px;fill:var(--flame-ink)">?</text>`;
   }
   return SV('0 0 1000 220', g);
 }
 
 /* two versions, and nothing on them says which one is whose */
 function sceneWhich(k){
-  let g = boxT(150, 30, 480, 60, 'v1: (101, Asha, 50000)', '', {fs:22});
-  g += boxT(150, 110, 480, 60, 'v2: (101, Asha, 40000)', '', {fs:22, fill:'var(--amber-soft)', dash:true});
+  let g = boxT(150, 30, 480, 60, 'v1: (101, Asha, 50000)', '', {fs:18});
+  g += boxT(150, 110, 480, 60, 'v2: (101, Asha, 40000)', '', {fs:18, fill:'var(--amber-soft)', dash:true});
   g += person(850, 40, 'Asha', 'which one is mine?', 'var(--pencil)');
   if(k >= 1){
-    [60, 140].forEach((y,i)=> g += `<g class="${an(1,k,'sv-pop')}" ${D(i*150)}><text class="t-serif" x="650" y="${y+8}" style="font-size:20px;fill:var(--flame-ink)">written by?  retired by?</text></g>`);
-    g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="150" y="206" style="font-size:22px;fill:var(--muted)">Nothing on a version says who created it, or whether it is still current.</text>`;
+    [60, 140].forEach((y,i)=> g += `<g class="${an(1,k,'sv-pop')}" ${D(i*150)}><text class="t-serif" x="650" y="${y+8}" style="font-size:16px;fill:var(--flame-ink)">written by?  retired by?</text></g>`);
+    g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="150" y="206" style="font-size:18px;fill:var(--muted)">Nothing on a version says who created it, or whether it is still current.</text>`;
   }
   return SV('0 0 1000 220', g);
 }
@@ -1293,27 +1310,27 @@ function sceneWhich(k){
 /* if DELETE erased the row, a count that started earlier would miss it */
 function sceneDeleteBad(k){
   const ids = [101, 102, 103];
-  let g = boxT(40, 20, 330, 60, 'Report: count accounts', 'started when 3 accounts existed', {fill:'var(--pencil-soft)', fs:21});
+  let g = boxT(40, 20, 330, 60, 'Report: count accounts', 'started when 3 accounts existed', {fill:'var(--pencil-soft)', fs:17});
   ids.forEach((id,i)=>{
     const x = 120 + i*260, gone = k >= 1 && id === 102;
     g += `<rect x="${x}" y="110" width="210" height="60" rx="4" fill="${gone?'var(--paper)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.4" ${gone?'stroke-dasharray="8 6" opacity=".5"':''}/>
-      <text class="t-serif" x="${x+105}" y="148" text-anchor="middle" style="font-size:24px;${gone?'fill:var(--muted)':''}">acc ${id}</text>`;
-    if((k >= 1 && i === 0) || (k >= 2 && i === 2)) g += `<text class="t-serif" x="${x+105}" y="198" text-anchor="middle" style="font-size:20px;fill:var(--pencil-2)">counted</text>`;
+      <text class="t-serif" x="${x+105}" y="148" text-anchor="middle" style="font-size:19px;${gone?'fill:var(--muted)':''}">acc ${id}</text>`;
+    if((k >= 1 && i === 0) || (k >= 2 && i === 2)) g += `<text class="t-serif" x="${x+105}" y="198" text-anchor="middle" style="font-size:16px;fill:var(--pencil-2)">counted</text>`;
   });
-  if(k >= 1) g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="505" y="100" text-anchor="middle" style="font-size:20px;fill:var(--flame-ink)">Ravi's DELETE erases 102 before the report reaches it</text>`;
-  if(k >= 2) g += `<text class="t-serif ${an(2,k,'sv-pop')}" x="500" y="248" text-anchor="middle" style="font-size:30px;fill:var(--flame-ink)">Report says 2. But 3 accounts existed when it began.</text>`;
+  if(k >= 1) g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="505" y="100" text-anchor="middle" style="font-size:16px;fill:var(--flame-ink)">Ravi's DELETE erases 102 before the report reaches it</text>`;
+  if(k >= 2) g += `<text class="t-serif ${an(2,k,'sv-pop')}" x="500" y="248" text-anchor="middle" style="font-size:24px;fill:var(--flame-ink)">Report says 2. But 3 accounts existed when it began.</text>`;
   return SV('0 0 1000 265', g);
 }
 
 /* the undo cost of a design that overwrites in place */
 function sceneUndo(k){
   let g = `<text class="t-sub" x="60" y="26">a design that overwrites rows in place</text>`;
-  g += boxT(60, 40, 380, 64, 'row 101: 45000', 'overwritten by txn 900', {fill:'var(--flame-soft)', fs:24});
-  g += boxT(560, 40, 380, 64, 'undo log: 40000', 'the old value, copied aside', {fill:'var(--pencil-soft)', fs:24});
+  g += boxT(60, 40, 380, 64, 'row 101: 45000', 'overwritten by txn 900', {fill:'var(--flame-soft)', fs:19});
+  g += boxT(560, 40, 380, 64, 'undo log: 40000', 'the old value, copied aside', {fill:'var(--pencil-soft)', fs:19});
   if(k >= 1){
     g += `<path class="sv-draw" style="--len:600" d="M750 106 C 750 170, 250 170, 250 108" fill="none" stroke="var(--flame)" stroke-width="3"/>${arrowHead(250,108,'u','var(--flame)')}
-      <text class="t-serif ${an(1,k,'sv-fade')}" x="500" y="196" text-anchor="middle" style="font-size:24px;fill:var(--flame-ink)">ROLLBACK must copy every old value back, row by row</text>
-      <text class="${an(1,k,'sv-fade')}" x="500" y="224" text-anchor="middle" style="font-size:18px;fill:var(--muted)">the bigger the failed transaction, the longer the undo takes</text>`;
+      <text class="t-serif ${an(1,k,'sv-fade')}" x="500" y="196" text-anchor="middle" style="font-size:19px;fill:var(--flame-ink)">ROLLBACK must copy every old value back, row by row</text>
+      <text class="${an(1,k,'sv-fade')}" x="500" y="224" text-anchor="middle" style="font-size:14px;fill:var(--muted)">the bigger the failed transaction, the longer the undo takes</text>`;
   }
   return SV('0 0 1000 235', g);
 }
@@ -1325,8 +1342,8 @@ function sceneDots(){
     const x = 40 + (i%20)*23, y = 36 + Math.floor(i/20)*23;
     g += `<rect class="nofx" x="${x}" y="${y}" width="19" height="19" fill="${i===57?'var(--card)':'var(--amber)'}" stroke="var(--ink)" stroke-width="1.2"/>`;
   }
-  g += boxT(540, 36, 420, 70, 'Index on branch', '990,000 random heap hops x 4.0', {fill:'var(--flame-soft)', fs:22});
-  g += boxT(540, 124, 420, 70, 'Sequential scan', '12,000 pages, read once, in order', {fill:'var(--leaf-soft)', fs:22});
+  g += boxT(540, 36, 420, 70, 'Index on branch', '990,000 random heap hops x 4.0', {fill:'var(--flame-soft)', fs:18});
+  g += boxT(540, 124, 420, 70, 'Sequential scan', '12,000 pages, read once, in order', {fill:'var(--leaf-soft)', fs:18});
   return SV('0 0 1000 210', g);
 }
 
@@ -1336,7 +1353,7 @@ function sceneScatter(){
   const hits = [[0,1],[1,3],[3,0],[3,2],[4,1],[6,2],[8,0],[8,3],[9,1],[10,2],[11,0]];
   for(let i=0;i<12;i++) g += `<rect class="nofx" x="${60+i*74}" y="40" width="62" height="80" rx="3" fill="var(--card)" stroke="var(--ink)" stroke-width="2"/>`;
   hits.forEach(([p,r])=> g += `<circle class="packet" cx="${80+p*74 + (r%2)*22}" cy="${58+r*16}" r="6" fill="var(--flame)" stroke="var(--ink)" stroke-width="1.3"/>`);
-  g += `<text class="t-serif" x="500" y="160" text-anchor="middle" style="font-size:26px">about 15,000 matching rows, spread over many pages</text>`;
+  g += `<text class="t-serif" x="500" y="160" text-anchor="middle" style="font-size:21px">about 15,000 matching rows, spread over many pages</text>`;
   return SV('0 0 1000 175', g);
 }
 
@@ -1344,20 +1361,20 @@ function sceneScatter(){
 function sceneAllPairs(){
   let g = `<text class="t-sub" x="60" y="24">Pune accounts</text><text class="t-sub" x="700" y="24">transactions</text>`;
   const L = [0,1,2,3], R = [0,1,2,3,4];
-  L.forEach(i=> g += boxT(60, 36+i*44, 180, 34, 'account '+(i+1), '', {fs:16}));
-  R.forEach(j=> g += boxT(700, 36+j*36, 200, 28, 'txn '+(j+1), '', {fs:15}));
+  L.forEach(i=> g += boxT(60, 36+i*44, 180, 34, 'account '+(i+1), '', {fs:13}));
+  R.forEach(j=> g += boxT(700, 36+j*36, 200, 28, 'txn '+(j+1), '', {fs:12}));
   L.forEach(i=> R.forEach(j=> g += `<path class="sv-draw" style="--len:500;animation-delay:${(i*5+j)*40}ms" d="M240 ${53+i*44} L700 ${50+j*36}" stroke="var(--flame)" stroke-width="1.4" fill="none" opacity=".7"/>`));
-  g += `<text class="t-serif" x="470" y="236" text-anchor="middle" style="font-size:24px;fill:var(--flame-ink)">4 x 5 = 20 comparisons here. 300,000 x 50,000,000 at NeoBank scale.</text>`;
+  g += `<text class="t-serif" x="470" y="236" text-anchor="middle" style="font-size:19px;fill:var(--flame-ink)">4 x 5 = 20 comparisons here. 300,000 x 50,000,000 at NeoBank scale.</text>`;
   return SV('0 0 1000 250', g);
 }
 
 /* if every node built its full result first */
 function sceneMaterialize(){
-  let g = boxT(40, 20, 170, 60, 'client', 'waiting for row 1...', {fill:'var(--pencil-soft)', ss:13});
+  let g = boxT(40, 20, 170, 60, 'client', 'waiting for row 1...', {fill:'var(--pencil-soft)', ss:10});
   [['Limit (3)', 20], ['Sort', 104], ['Seq Scan', 188]].forEach((n,i)=>{
-    g += boxT(330, n[1], 220, 60, n[0], '', {fs:21});
+    g += boxT(330, n[1], 220, 60, n[0], '', {fs:17});
     g += `<rect x="580" y="${n[1]+6}" width="${360 - i*20}" height="48" rx="3" fill="var(--flame-soft)" stroke="var(--ink)" stroke-width="2" stroke-dasharray="7 5"/>
-      <text x="${590}" y="${n[1]+36}" style="font-size:16px;fill:var(--flame-ink)">${i===0?'waits for Sort to finish':'holds its whole result: up to 1,000,000 rows'}</text>`;
+      <text x="${590}" y="${n[1]+36}" style="font-size:13px;fill:var(--flame-ink)">${i===0?'waits for Sort to finish':'holds its whole result: up to 1,000,000 rows'}</text>`;
   });
   g += `<path d="M210 50 H326" stroke="var(--ink)" stroke-width="2.2" stroke-dasharray="6 5"/>`;
   return SV('0 0 1000 260', g);
