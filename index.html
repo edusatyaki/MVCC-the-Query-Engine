@@ -750,7 +750,7 @@ function sceneTitle(st){
 
 /* the accounts table, with the row we follow all lecture */
 function sceneTable(st){
-  const cols = ['acc_no','holder_name','balance','branch'], xs = [60, 250, 480, 690], W = 880;
+  const cols = ['acc_no','holder_name','balance','branch'], xs = [60, 200, 380, 540], W = 640;
   let g = `<rect x="40" y="30" width="${W}" height="54" fill="var(--amber)" stroke="var(--ink)" stroke-width="2.5"/>`;
   cols.forEach((c,i)=> g += `<text class="t-mono" x="${xs[i]}" y="64" style="font-size:15px;fill:var(--ink);font-weight:700">${c}</text>`);
   const rows = [['100','Kiran','72000','Mumbai'],['101','Asha','50000','Pune'],['102','Dev','18000','Delhi']];
@@ -761,8 +761,10 @@ function sceneTable(st){
       <rect x="40" y="${y}" width="${W}" height="56" fill="${me?'var(--amber-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="${me?3:2}"/>
       ${r.map((v,i)=>`<text class="t-mono" x="${xs[i]}" y="${y+36}" style="font-size:15px;fill:var(--ink)">${v}</text>`).join('')}</g>`;
   });
-  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><path d="M935 168 h28" stroke="var(--ink)" stroke-width="2.6"/>
-     <text class="t-serif" x="930" y="228" text-anchor="end" style="font-size:18px">the row we follow all lecture</text></g>`;
+  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}">
+     <path d="M688 168 H724" stroke="var(--ink)" stroke-width="2.6"/>${arrowHead(688, 168, 'l')}
+     <text class="t-serif" x="736" y="162" style="font-size:18px">the row we follow</text>
+     <text class="t-serif" x="736" y="190" style="font-size:18px">all lecture</text></g>`;
   return SV('0 0 1000 250', g);
 }
 
