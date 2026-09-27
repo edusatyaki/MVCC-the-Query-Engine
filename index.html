@@ -1469,7 +1469,7 @@ const SOL = note => ({ph:'solve', note});
 
 const DECK = [
 /* ------------------------------ chapter 1 ------------------------------ */
-{ id:'title', kick:'Adhyyan', eyebrow:'PostgreSQL internals', title:'MVCC & the Query Engine',
+{ id:'title', kick:'one table, a reader and a writer', eyebrow:'PostgreSQL internals', title:'MVCC & the Query Engine',
   tag:'intro', steps:[
   {note:'Welcome. Today we open the hood of PostgreSQL. One table sits in the middle of everything: NeoBank\'s accounts. Asha reads it, Ravi writes it, and both do so at the same moment.'},
   {note:'Two halves. First, how many concurrent transactions coexist on one row: MVCC. Second, what the engine does with a single query that touches a million rows: the four-stage pipeline.'}],
