@@ -130,6 +130,17 @@ A slide clips rather than scrolls, and an inner wrapper scales the step down if
 it would not fit. All 96 pages were walked at 1280x760 with no script errors,
 no label off the canvas, and no page needing to be scaled down.
 
+## Checking for overlaps
+
+`tools/overlap-audit.js` walks every page and step and lists anything that
+overlaps: text on text inside the pictures, labels half across a box, lines
+running through labels, page text on page text (sidebar, titles, cards,
+terminals), text over a picture, and text cut off inside its box. Open the deck,
+paste the file into the browser console, and an empty list means all clear.
+
+It came back empty at 1024x768, 1280x760, 1366x640, 1440x900, 1920x1080 and the
+narrow 820px layout, and at 130% and 150% text size.
+
 ## Design
 
 The sketchnote layout inherited from Database-Optimization: cream paper,

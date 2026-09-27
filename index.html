@@ -465,7 +465,7 @@ text{font-family:var(--hand)}
 .cards > div{display:flex} .cards > div > .card{flex:1 1 auto}
 .sql{font-family:var(--mono);font-size:.6rem;line-height:1.55;background:var(--card);color:var(--ink);
   border:2.5px solid var(--ink);border-radius:var(--wobble-2);padding:.5rem .85rem;box-shadow:var(--shadow-sm);
-  white-space:pre;overflow:hidden;transform:rotate(-.15deg)}
+  white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;transform:rotate(-.15deg)}
 .sql.big{font-size:.9rem;align-self:center}
 .sql .k{color:var(--pencil-2);font-weight:700} .sql .s{color:var(--leaf);font-weight:700} .sql .c{color:var(--muted)}
 .sql .hl{background:var(--amber);border-radius:4px;padding:0 .15em}
@@ -540,7 +540,8 @@ text{font-family:var(--hand)}
 .term.bad{border-color:var(--flame)} .term.bad .term-bar{background:#6B2A1E}
 
 /* ---- two sessions on one timeline: moments numbered down the middle ---- */
-.tl{display:grid;grid-template-columns:minmax(0,1fr) 2.1rem minmax(0,1fr);flex:0 0 auto;row-gap:0}
+/* named .tline, not .tl: .tl is already a card colour, and the clash turned those cards into grids */
+.tline{display:grid;grid-template-columns:minmax(0,1fr) 2.1rem minmax(0,1fr);flex:0 0 auto;row-gap:0}
 .tl-h{display:flex;align-items:center;gap:.28rem;padding:.24rem .55rem;background:#3A342D;color:#E8DFD0;
   font-family:var(--hand);font-size:.5rem;letter-spacing:.5px;border:2.5px solid var(--ink);border-bottom:0;
   border-radius:8px 8px 0 0}
@@ -555,7 +556,7 @@ text{font-family:var(--hand)}
   color:#EDE6D8;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;min-height:1.6rem}
 .tl-c.on{background:#26221D;box-shadow:inset 3px 0 0 #F7C948}
 .tl-c.bad{border-left-color:var(--flame);border-right-color:var(--flame)}
-.tl > .tl-c:nth-last-child(1),.tl > .tl-c:nth-last-child(3){border-bottom:2.5px solid var(--ink);border-radius:0 0 8px 8px}
+.tline > .tl-c:nth-last-child(1),.tline > .tl-c:nth-last-child(3){border-bottom:2.5px solid var(--ink);border-radius:0 0 8px 8px}
 .tl-c .pr{color:#8FC7FF;font-weight:700} .tl-c .cm{color:#9E9382} .tl-c .nw{color:#8FD6AE;font-weight:700}
 .tl-c .wt{color:#F7C948;font-weight:700;animation:blip 1.4s ease-in-out infinite}
 .tl-n{display:flex;align-items:flex-start;justify-content:center;padding-top:.3rem;position:relative}
@@ -566,14 +567,14 @@ text{font-family:var(--hand)}
 /* ---- Arial throughout: it runs wider than the sketch faces, so sizes are retuned ---- */
 :root{--hand:Arial,Helvetica,sans-serif;--marker:Arial,Helvetica,sans-serif}
 text{font-family:Arial,Helvetica,sans-serif}
-.slide-title{font-size:1.45rem;font-weight:700;letter-spacing:-.01em}
+.slide-title{font-size:1.45rem;font-weight:700;letter-spacing:-.01em;transform:none;margin-top:.08rem}
 .rail-lecture b{font-size:.78rem;font-weight:700}
 .rn-t{font-size:.56rem}
 .rail-by b{font-size:clamp(10px,.5rem,13px)}
 .card h3{font-size:.84rem;line-height:1.15}
 .card p{font-size:.68rem}
 .lede{font-size:.8rem}
-.ch-num{font-size:5.4rem}
+.ch-num{font-size:5.4rem;line-height:.92;margin-bottom:.25rem}
 .ch-title{font-size:1.8rem}
 .ch-problem{font-size:1.05rem}
 .quote{font-size:.95rem}
@@ -884,11 +885,11 @@ function sceneHeap(st){
     <text class="t-sub" x="148" y="46">heap page 0 of accounts</text>`;
   g += tup(160, 62, {v:'v1', data:'(101, Asha, 50000)', xmin:'500', xmax: st>=1?'802':'0', hiMax: st===1,
          st: st>=1?'dead':'live', w:540, tag: st>=1?'expired (pending)':'live', tagc: st>=1?PEND:VIS});
-  g += `<text class="t-mono" x="148" y="86" text-anchor="end" style="font-size:12px">(0,1)</text>`;
+  g += `<text class="t-mono" x="470" y="98" text-anchor="end" style="font-size:12px;fill:var(--muted)">ctid (0,1)</text>`;
   if(st >= 1){
     g += tup(160, 146, {v:'v2', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', hiMin:true, st:'new', w:540,
            tag:'new, appended', tagc:PEND, cls:an(1,st,'sv-rise'), delay:200});
-    g += `<text class="t-mono" x="148" y="170" text-anchor="end" style="font-size:12px">(0,2)</text>
+    g += `<text class="t-mono" x="470" y="182" text-anchor="end" style="font-size:12px;fill:var(--muted)">ctid (0,2)</text>
       <path d="M110 92 C 70 110, 70 150, 110 170" fill="none" stroke="var(--pencil-2)" stroke-width="2.6" stroke-dasharray="6 5"/>
       ${arrowHead(112, 171, 'r', 'var(--pencil-2)')}`;
   }
@@ -950,7 +951,7 @@ function sceneTuples(state, st, fresh){
 function sceneDelete(st){
   let g = tup(40, 40, {v:'v1', data:'(102, Dev, 18000)', xmin:'610', xmax: st>=1?'910':'0', hiMax: st===1, w:600,
                        st: st>=1?'dead':'live', tag: st>=1?'expired by 910':'live', tagc: st>=1?INV:VIS});
-  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><text class="t-sub" x="40" y="130">DELETE never erases: it writes Ravi's XID (910) into xmax</text></g>`;
+  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><text class="t-sub" x="250" y="132">DELETE only writes Ravi's number (910) into xmax</text></g>`;
   if(st >= 2){
     g += `<g class="${an(2,st,'sv-rise')}">
       ${boxT(40, 160, 380, 76, 'Month-end report', 'started before 910 finished', {fill:'var(--pencil-soft)'})}
@@ -1161,7 +1162,7 @@ function sceneFunnel(st, blind){
     g += `<g class="${st>=0?'sv-rise':''}" ${D(i*260)}><rect x="40" y="${16+i*62}" width="${w}" height="44" rx="3"
       fill="${blind?'var(--paper-2)':i===2?'var(--amber)':i===1?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.3" ${blind&&i?'stroke-dasharray="8 6"':''}/>
       <text class="t-serif" x="${w+56}" y="${48+i*62}" style="font-size:19px">${blind ? (i ? '? rows' : '1,000,000 rows') : b[0]}</text>
-      <text class="t-sub" x="${w+56}" y="${30+i*62}" style="font-size:11px">${b[2]}</text></g>`;
+      <text class="t-sub" x="${w+56}" y="${24+i*62}" style="font-size:11px">${b[2]}</text></g>`;
   });
   return SV('0 0 1000 206', g);
 }
@@ -1181,7 +1182,7 @@ function sceneScanKind(k){
   } else if(k === 1){
     g += tree() + pages(180, i=>[1,6,9].includes(i));
     [[330,1],[330,6],[680,9]].forEach(([x,i],j)=> g += wire(`M${x} 106 C ${x} 150, ${91+i*74} 140, ${91+i*74} 178`, {color:'var(--flame)', dur:1.4, delay:j*.3}));
-    g += `<text class="t-sub" x="940" y="170" text-anchor="end">one random heap hop per match</text>`;
+    g += `<text class="t-sub" x="940" y="40" text-anchor="end">one random heap hop per match</text>`;
   } else if(k === 2){
     g += tree() + `<g opacity=".35">${pages(180, ()=>false)}</g>
       ${boxT(760, 116, 200, 44, 'visibility map', 'all-visible', {fs:13, ss:10, fill:'var(--leaf-soft)'})}
@@ -1349,9 +1350,9 @@ function sceneOverwrite(k){
 function sceneWhich(k){
   let g = boxT(150, 30, 480, 60, 'v1: (101, Asha, 50000)', '', {fs:18});
   g += boxT(150, 110, 480, 60, 'v2: (101, Asha, 40000)', '', {fs:18, fill:'var(--amber-soft)', dash:true});
-  g += person(850, 40, 'Asha', 'which one is mine?', 'var(--pencil)');
+  g += person(905, 40, 'Asha', 'which one is mine?', 'var(--pencil)');
   if(k >= 1){
-    [60, 140].forEach((y,i)=> g += `<g class="${an(1,k,'sv-pop')}" ${D(i*150)}><text class="t-serif" x="650" y="${y+8}" style="font-size:16px;fill:var(--flame-ink)">written by?  retired by?</text></g>`);
+    [60, 140].forEach((y,i)=> g += `<g class="${an(1,k,'sv-pop')}" ${D(i*150)}><text class="t-serif" x="650" y="${y+8}" style="font-size:16px;fill:var(--flame-ink)">made by?  replaced by?</text></g>`);
     g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="150" y="206" style="font-size:18px;fill:var(--muted)">Nothing on a version says who created it, or whether it is still current.</text>`;
   }
   return SV('0 0 1000 220', g);
@@ -1539,7 +1540,7 @@ ${PRC}  WHERE acc_no = 101;`;
 /* two sessions as one timeline: numbered moments down the middle, and each
    line sits in the window of whoever typed it, in the order it happened */
 function timeline(titleL, titleR, rows, badR=false){
-  let h = `<div class="tl"><div class="tl-h">${'<i></i><i></i><i></i>'}<span>${titleL}</span></div>
+  let h = `<div class="tline"><div class="tl-h">${'<i></i><i></i><i></i>'}<span>${titleL}</span></div>
     <div class="tl-tm">time</div>
     <div class="tl-h ${badR?'bad':''}">${'<i></i><i></i><i></i>'}<span>${titleR}</span></div>`;
   rows.forEach(([side, html], i) => {
