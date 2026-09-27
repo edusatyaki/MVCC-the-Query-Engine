@@ -115,7 +115,13 @@ xmin/xmax visibility rule from Part 1.
 
 ## ctid, xmin and xmax, explained
 
-Chapter 3 has an explainer page for the three hidden columns (pages 18-23):
+Chapter 3 explains the three hidden columns on pages 17-23, built around the
+**replace principle**: an UPDATE never edits a row. It *ends* the old version
+(old `xmax` = my transaction number) and *creates* a new one (new `xmin` = the
+same number, at a new `ctid`). The same number in the old `xmax` and the new
+`xmin` is what links them, and a red arrow draws that link on pages 17 and 20.
+Every version can be read as a sentence: *"I live at (0,2), I was born by 802,
+and nobody has ended me."*
 
 | Column | Meaning | Read it as |
 |--------|---------|-----------|
