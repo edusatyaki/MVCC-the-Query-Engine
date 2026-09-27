@@ -34,11 +34,11 @@ The whole deck runs on the arrow keys.
 | `+` / `-` / `0` | type size, for the room you are in |
 | `Home` / `End` | first / last slide |
 
-34 slides, 70 pages, 21 cases: sized for an 80-minute class. Notes are written for speaking aloud, one per page, in plain language
+33 slides, 68 pages, 21 cases: sized for an 80-minute class. Notes are written for speaking aloud, one per page, in plain language
 a class 10 student can follow.
 
 The counter in the rail is a **page number that counts right-arrow presses**:
-every step is one page, so it runs from `Page 1 / 70` to `Page 70 / 70`, and
+every step is one page, so it runs from `Page 1 / 68` to `Page 68 / 68`, and
 the run of show (`O`) lists the page each slide starts on.
 
 ## Structure: requirement first, then cases
@@ -125,7 +125,7 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. All 70 pages were walked at 1280x760 with no script errors,
+it would not fit. All 68 pages were walked at 1280x760 with no script errors,
 no label off the canvas, and no page needing to be scaled down.
 
 ## Checking for overlaps

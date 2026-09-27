@@ -1454,7 +1454,7 @@ const CHAPTERS = [
  {n:4, t:'Deleting, undoing, cleaning',  of:['delete','rollback','vacuum','bloat','oracle']},
  {n:5, t:'Reading your query',           of:['pipeline','running','parser','analyzer','rewriter']},
  {n:6, t:'Choosing the fastest way',     of:['costphil','stats','scans','joins','decision']},
- {n:7, t:'Running the plan',             of:['volcano','exectrace','wrap','exit']}
+ {n:7, t:'Running the plan',             of:['volcano','exectrace','wrap']}
 ];
 
 /* problem = the requirement, detail = why it is hard */
@@ -1930,17 +1930,6 @@ ${NEW(' holder_name | balance\n-------------+---------\n Nisha       |  410000\n
       ${card('3','Planner','Used statistics to pick the fastest way.','pp','','pop d3')}
       ${card('4','Executor','Passed rows up one at a time, with the MVCC rule.','good','','pop d4')}
     </div>` },
-
-{ id:'exit', kick:'before you leave', eyebrow:'Exit ticket', title:'Two questions',
-  tag:'check', steps:[
-  {note:'Two quick questions. Which step swaps a view for its saved query? And which one command both cleans up old versions and refreshes statistics?'},
-  {note:'Answers: the Analyzer / Rewriter, and VACUUM ANALYZE. Then open the floor for questions, and ask everyone to fill in the feedback form. Next lecture: indexes, and EXPLAIN ANALYZE.'}],
-  body:(st)=>`
-    <div class="cards" style="grid-template-columns:1fr 1fr;gap:.8rem">
-      ${card('Q1', 'Which step swaps a view for its saved query?', st>=1?'<b class="ans">The Analyzer / Rewriter</b>':'Think, then answer.', 'pp','layers', pp(0,st))}
-      ${card('Q2', 'Which one command cleans up old versions and refreshes statistics?', st>=1?'<b class="ans">VACUUM ANALYZE</b>':'Think, then answer.', 'pp','trash', pp(0,st))}
-    </div>
-    ${st>=1?fix('<b>Any questions?</b> Please fill in the feedback form. <b>Next lecture:</b> indexes, and <code>EXPLAIN ANALYZE</code>.'):''}` },
 
 ];
 
