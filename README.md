@@ -34,33 +34,44 @@ The whole deck runs on the arrow keys.
 | `+` / `-` / `0` | type size, for the room you are in |
 | `Home` / `End` | first / last slide |
 
-42 slides, 157 steps. Notes are written for speaking aloud, one per step.
+40 slides, 182 steps, 22 cases. Notes are written for speaking aloud, one per step.
 
-## Structure: it is a story
+## Structure: requirement first, then cases
 
 One table runs through the whole lecture: NeoBank's `accounts`, and row 101,
-Asha's account with 50,000 in the Pune branch. Asha reads; Ravi writes. Seven
-chapters, six of which open with a chapter card that states the situation,
-names the problem, and only then turns to the mechanism.
+Asha's account with 50,000 in the Pune branch. Asha reads; Ravi writes.
 
-| Ch | Chapter | The problem that opens it |
-|----|---------|---------------------------|
-| 1 | One table, one story | The running example: one table, a reader and a writer. |
-| 2 | Readers and writers | If every write locks its row, every read of that row waits. |
-| 3 | Row versions | How can Asha read 50000 while Ravi writes 40000 to the same row? |
-| 4 | Deleting, undoing, cleaning | If nothing is overwritten, what do DELETE and ROLLBACK do, and who cleans up? |
-| 5 | From SQL text to a query tree | A perfectly isolated transaction can still be slow. |
-| 6 | Choosing the cheapest plan | The same query can be answered in many ways, some far slower. |
-| 7 | Running the plan | The planner hands over a tree; something has to run it. |
+**Every chapter opens with its requirement.** The chapter card builds in four
+steps: the chapter name, *the requirement* (what the system has to achieve),
+*why it is hard*, and the list of cases the chapter will solve.
+
+**Every case runs in three phases**, shown as a strip at the top of the slide:
+
+| Phase | What happens on screen |
+|-------|------------------------|
+| 1. The problem | A problem card states the situation as a question, with the scene set up but nothing solved |
+| 2. See the problem | The failure is animated: the reader stuck at a lock, the report that adds up to 105,000, the row that vanishes mid-count |
+| 3. Solve it (step k of n) | The fix is built visually, one step per click, with the problem kept in view above it |
+
+| Ch | Chapter | The requirement | Cases |
+|----|---------|-----------------|-------|
+| 1 | One table, one story | One shared example every idea can be tested on | (setup) |
+| 2 | Readers and writers | Many readers and writers on the same rows; no dirty reads, no needless waiting | 1-2 |
+| 3 | Row versions | A place for both versions, a label on each, and a rule that picks one | 3-6 |
+| 4 | Deleting, undoing, cleaning | Remove rows, cancel work, and clear old versions without unbounded growth | 7-12 |
+| 5 | From SQL text to a query tree | Check grammar, names, types and permissions, and expand views | 13-15 |
+| 6 | Choosing the cheapest plan | Find the fastest way to 15,000 of 1,000,000 rows without trying them all | 16-20 |
+| 7 | Running the plan | Stream rows early, use little memory, and apply MVCC to every tuple | 21-22 |
 
 Part 1 (MVCC) is chapters 2 to 4. Part 2 (query processing) is chapters 5 to 7.
-The two halves meet on the execution-trace slide, where every `next()` on the
-scan node runs the xmin/xmax visibility rule from Part 1.
+The two halves meet in case 22, where every `next()` on the scan node runs the
+xmin/xmax visibility rule from Part 1.
 
 ## What is animated
 
 | Scene | Motion |
 |-------|--------|
+| Problem scenes | Each case first animates what breaks: an in-place overwrite that destroys 50000, a sum that invents 5,000, a DELETE that makes a count wrong, an undo log copied back row by row, 990,000 index hops, 20 all-pairs join lines, nodes that buffer a million rows |
 | Locks make readers wait | Ravi's UPDATE reaches the row and locks it; Asha's SELECT stalls at the lock |
 | The core promise | Two versions of the row; Asha's query takes the committed one and returns at once, while a second writer still queues |
 | Long reads | Transfers tick past on a five-minute timeline while the report's snapshot line stays put |
@@ -85,8 +96,8 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. Every one of the 157 steps was walked at 1074x863 in both
-themes: no errors, and no step needed more than the 3% safety margin.
+it would not fit. All 182 steps were walked at 1280x760 with no script errors;
+only one step needs scaling at all, and only to 90%.
 
 ## Design
 

@@ -492,6 +492,38 @@ text{font-family:var(--hand)}
   background-repeat:no-repeat;padding:0 .3em;transform:rotate(-3deg)}
 .card .ul{display:block;line-height:1.55}
 .card .ans{color:var(--leaf);font-size:1.15em}
+
+/* ---- the case strip: problem -> see the problem -> solve it ---- */
+.casebar{display:flex;align-items:center;flex-wrap:wrap;gap:.35rem;flex:0 0 auto}
+.case-n{font-family:var(--marker);font-weight:700;font-size:.95rem;color:var(--ink);margin-right:.35rem}
+.ph{font-family:var(--hand);font-size:.52rem;letter-spacing:1px;text-transform:uppercase;padding:.14rem .55rem;
+  border:2px dashed var(--line);border-radius:var(--wobble-2);color:var(--muted);white-space:nowrap}
+.ph.done{border-style:solid;border-color:var(--ink-2);color:var(--ink-2)}
+.ph.on{border-style:solid;border-color:var(--ink);background:var(--amber);color:var(--ink);box-shadow:var(--shadow-sm)}
+.ph-sep{position:relative;width:1rem;height:2px;background:var(--ink-2)}
+.ph-sep::after{content:'';position:absolute;right:-1px;top:-4px;border:5px solid transparent;border-left-color:var(--ink-2);border-right:0}
+.caseq{flex:0 0 auto;font-family:var(--hand);font-size:.62rem;line-height:1.3;color:var(--ink-2);
+  border-left:4px solid var(--flame);padding-left:.55rem}
+.caseq b{color:var(--flame-ink)}
+.probcard{background:var(--card);border:2.5px solid var(--ink);border-radius:var(--wobble);padding:.7rem 1rem;
+  box-shadow:var(--shadow);transform:rotate(-.25deg);position:relative;flex:0 0 auto}
+.probcard::after{content:'';position:absolute;left:.7rem;right:.7rem;top:-2px;height:7px;background:var(--flame);border-radius:99px}
+.probcard .pk{font-family:var(--hand);font-size:.58rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--flame-ink)}
+.probcard .pq{font-family:var(--marker);font-weight:700;font-size:1.3rem;line-height:1.1;color:var(--ink);margin-top:.1rem}
+.probcard p{margin:.3rem 0 0;font-family:var(--hand);font-size:.72rem;color:var(--ink-2)}
+/* ---- chapter requirement card ---- */
+.req{background:var(--card);border:2.5px solid var(--ink);border-radius:var(--wobble-2);padding:.55rem .85rem;
+  box-shadow:var(--shadow-sm);margin-bottom:.5rem}
+.req-k{font-family:var(--hand);font-size:.56rem;letter-spacing:1.4px;text-transform:uppercase;color:var(--orange-deep)}
+.req p{margin:.15rem 0 0;font-family:var(--marker);font-weight:700;font-size:1.02rem;line-height:1.15;color:var(--ink)}
+.hard{font-family:var(--hand);font-size:.74rem;line-height:1.35;color:var(--ink-2);margin-bottom:.5rem}
+.caselist{display:flex;flex-direction:column;gap:.22rem;border-left:4px dashed var(--amber-2);padding-left:.7rem}
+.cl{display:flex;gap:.55rem;align-items:baseline;font-family:var(--hand);font-size:.7rem;color:var(--ink)}
+.cl-n{font-family:var(--mono);font-size:.5rem;font-weight:700;color:var(--orange-deep);white-space:nowrap}
+.chars{display:flex;flex-wrap:wrap;gap:3px;justify-content:center}
+.chr{font-family:var(--mono);font-size:.62rem;min-width:1.05em;text-align:center;padding:.12rem .1rem;
+  border:1.5px solid var(--line);border-radius:3px;background:var(--card);color:var(--ink)}
+.howto{display:flex;align-items:center;flex-wrap:wrap;gap:.4rem;justify-content:center}
 </style>
 </head>
 <body>
@@ -814,7 +846,9 @@ function sceneRule(st){
     <text class="t-serif" x="${x+100}" y="80" text-anchor="middle" style="font-size:26px">Rule ${n}</text>
     <text x="${x+100}" y="120" text-anchor="middle" style="font-size:17px;fill:var(--ink-2)">${t1}</text>
     <text x="${x+100}" y="144" text-anchor="middle" style="font-size:17px;fill:var(--ink-2)">${t2}</text></g>`;
-  g += gate(400, 1, 'xmin committed at or', 'before my snapshot', st===0);
+  if(st >= 0) g += gate(400, 1, 'xmin committed at or', 'before my snapshot', st===0);
+  else g += `<text class="t-serif" x="660" y="118" text-anchor="middle" style="font-size:34px;fill:var(--muted)">visible to my snapshot, or not?</text>
+    <text x="660" y="156" text-anchor="middle" style="font-size:18px;fill:var(--muted)">two numbers in, one yes/no answer out</text>`;
   if(st >= 1) g += `<g class="${an(1,st,'sv-rise')}">${gate(640, 2, 'xmax is 0, or had not', 'committed by my snapshot', st===1)}
      <text class="t-serif" x="620" y="130" text-anchor="middle" style="font-size:22px">AND</text></g>`;
   if(st >= 2){
@@ -941,13 +975,15 @@ function sceneSaw(st){
 /* PostgreSQL keeps old versions in the heap; Oracle moves them to undo */
 function sceneOracle(st){
   let g = `<text class="t-serif" x="250" y="32" text-anchor="middle" style="font-size:26px">PostgreSQL</text>
-    <text class="t-serif" x="750" y="32" text-anchor="middle" style="font-size:26px">Oracle</text>
+    ${st>=1?'<text class="t-serif" x="750" y="32" text-anchor="middle" style="font-size:26px">Oracle</text>':''}
     <line x1="500" y1="14" x2="500" y2="210" stroke="var(--line)" stroke-width="3" stroke-dasharray="7 6"/>`;
   g += `<rect x="70" y="50" width="360" height="150" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
     <text class="t-sub" x="84" y="72">the table (heap)</text>
     ${boxT(90, 84, 320, 46, 'v1: 50000 (old)', '', {fill:'var(--flame-soft)', fs:20})}
     ${boxT(90, 140, 320, 46, 'v2: 40000 (new)', '', {fill:'var(--leaf-soft)', fs:20})}`;
-  g += `<rect x="560" y="50" width="380" height="72" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
+  if(st < 1) g += `<text class="t-serif" x="540" y="110" style="font-size:24px;fill:var(--flame-ink)">every UPDATE leaves the old</text>
+    <text class="t-serif" x="540" y="142" style="font-size:24px;fill:var(--flame-ink)">version inside the table</text>`;
+  if(st >= 1) g += `<rect x="560" y="50" width="380" height="72" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
     <text class="t-sub" x="574" y="70">the table</text>
     ${boxT(580, 76, 340, 40, 'row: 40000 (overwritten)', '', {fill:'var(--leaf-soft)', fs:19})}
     <rect x="560" y="150" width="380" height="58" rx="4" fill="var(--pencil-soft)" stroke="var(--ink)" stroke-width="2.4"/>
@@ -1033,6 +1069,10 @@ function sceneView(st){
   if(st < 2){
     g += boxT(180, 100, 280, 60, 'FROM pune_hnw', 'a view: a stored query', {fs:24, ss:15, fill:'var(--amber)', glow: st===1, sc:'var(--ink-2)'});
   }
+  if(st < 0){
+    g += `<path d="M320 160 L320 206" stroke="var(--ink)" stroke-width="2.4" stroke-dasharray="6 5"/>`;
+    g += boxT(120, 206, 400, 70, 'rows stored in pune_hnw: none', 'so what does the planner scan?', {fs:22, ss:16, dash:true, fill:'var(--flame-soft)'});
+  }
   if(st === 1){
     g += `<g class="sv-rise">${boxT(20, 210, 600, 84, 'the view definition', "SELECT * FROM accounts WHERE branch = 'Pune' AND balance &gt; 100000", {fs:22, ss:15, dash:true})}</g>`;
     g += wire('M320 208 L 320 162', {color:'var(--pencil-2)', dur:1.2});
@@ -1046,14 +1086,14 @@ function sceneView(st){
 }
 
 /* 1M rows, 30% Pune, 5% of those above 100000 */
-function sceneFunnel(st){
+function sceneFunnel(st, blind){
   const bars = [['1,000,000 rows', 1, 'reltuples'], ['x 0.30 = 300,000', .3, "branch = 'Pune'"], ['x 0.05 = 15,000', .015, 'balance &gt; 100000']];
   let g = '';
   bars.forEach((b,i)=>{
-    const w = Math.max(40, 680*b[1]);
+    const w = blind ? 680 - i*120 : Math.max(40, 680*b[1]);
     g += `<g class="${st>=0?'sv-rise':''}" ${D(i*260)}><rect x="40" y="${16+i*62}" width="${w}" height="44" rx="3"
-      fill="${i===2?'var(--amber)':i===1?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.3"/>
-      <text class="t-serif" x="${w+56}" y="${48+i*62}" style="font-size:24px">${b[0]}</text>
+      fill="${blind?'var(--paper-2)':i===2?'var(--amber)':i===1?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.3" ${blind&&i?'stroke-dasharray="8 6"':''}/>
+      <text class="t-serif" x="${w+56}" y="${48+i*62}" style="font-size:24px">${blind ? (i ? '? rows' : '1,000,000 rows') : b[0]}</text>
       <text class="t-sub" x="${w+56}" y="${30+i*62}" style="font-size:14px">${b[2]}</text></g>`;
   });
   return SV('0 0 1000 206', g);
@@ -1116,6 +1156,12 @@ function sceneCost(st){
   const C = [['Seq Scan', 22000, '12,000 pages x 1.0 + 1M rows x 0.01'], ['Index Scan on branch', 60000, '15,000 random heap hops x 4.0'],
              ['Bitmap Heap Scan', 9000, 'medium selectivity, pages visited in order']];
   let g = '';
+  if(st === 0){
+    C.forEach((c,i)=> g += `<text class="t-serif" x="250" y="${48+i*72}" text-anchor="end" style="font-size:22px">${c[0]}</text>
+      <rect x="270" y="${16+i*72}" width="600" height="46" rx="3" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2" stroke-dasharray="8 6"/>
+      <text class="t-serif" x="570" y="${48+i*72}" text-anchor="middle" style="font-size:26px;fill:var(--muted)">cost = ?</text>`);
+    return SV('0 0 1000 230', g);
+  }
   C.forEach((c,i)=>{
     if(st < i+1) return;
     const w = 600 * c[1]/60000, y = 16 + i*72, win = i === 2 && st >= 3;
@@ -1152,18 +1198,18 @@ const XROWS = [
   ['Nisha', 410000, 'Pune', 'vis', 'kept'],
   ['Arjun', 150000, 'Pune', 'new', 'invisible: xmin not committed'],
   ['Tara', 105000, 'Pune', 'vis', 'kept']];
-function sceneExec(st){
+function sceneExec(st, raw){
   let g = boxT(30, 40, 190, 54, 'Limit (3)', '', {fs:21, glow: st===1||st===3});
   g += boxT(30, 120, 190, 54, 'Sort', 'pipeline-breaker', {fs:21, ss:13, glow: st===2});
   g += boxT(30, 200, 190, 54, 'Seq Scan', 'filter + MVCC check', {fs:21, ss:13, glow: st===2});
   g += `<path d="M125 94 V120 M125 174 V200" stroke="var(--ink)" stroke-width="2.2"/>`;
-  if(st >= 2){
+  if(st >= 2 || raw){
     XROWS.forEach((r,i)=>{
-      const ok = r[4] === 'kept', y = 40 + i*29;
+      const ok = !raw && r[4] === 'kept', y = 40 + i*29;
       g += `<g class="${an(2,st,'sv-rise')}" ${D(i*140)}>
         <rect class="nofx" x="270" y="${y}" width="260" height="24" rx="3" fill="${ok?'var(--leaf-soft)':'var(--paper-2)'}" stroke="var(--ink)" stroke-width="1.5"/>
         <text class="t-mono" x="280" y="${y+17}" style="font-size:14px;fill:var(--ink)">${r[0]}, ${r[1].toLocaleString('en-US')}, ${r[2]}</text>
-        <text x="545" y="${y+17}" style="font-size:15px;fill:${ok?'var(--leaf)':r[3]==='vis'?'var(--muted)':'var(--flame-ink)'}">${r[4]}</text></g>`;
+        <text x="545" y="${y+17}" style="font-size:15px;fill:${ok?'var(--leaf)':r[3]==='vis'?'var(--muted)':'var(--flame-ink)'}">${raw ? (r[3]==='del' ? 'deleted by a committed txn' : r[3]==='new' ? 'inserted, not committed' : '') : r[4]}</text></g>`;
     });
   }
   if(st >= 3){
@@ -1175,59 +1221,234 @@ function sceneExec(st){
   return SV('0 0 1000 280', g);
 }
 
+
 /* =====================================================================
-   The story spine
+   Problem scenes: each one shows what goes wrong before the fix
+   ===================================================================== */
+
+/* a 5-minute report adds up four accounts while a transfer commits mid-scan */
+function sceneSum(k, good){
+  const bal = [10000, 20000, 30000, 40000];
+  const after = [5000, 20000, 30000, 45000];
+  const moved = k >= 2;
+  const read = k >= 3 ? 4 : k >= 1 ? 2 : 0;
+  let g = '';
+  bal.forEach((b,i)=>{
+    const x = 40 + i*235, now = moved ? after[i] : b, isRead = i < read;
+    const shown = good && i === 3 ? 40000 : (i === 0 ? b : now);   /* acc 1 was read before the transfer */
+    g += `<rect x="${x}" y="90" width="205" height="74" rx="4" fill="${isRead?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.4"/>
+      <text class="t-sub" x="${x+14}" y="112">acc ${i+1}</text>
+      <text class="t-serif" x="${x+102}" y="150" text-anchor="middle" style="font-size:30px">${now.toLocaleString('en-US')}</text>`;
+    if(isRead) g += `<text x="${x+102}" y="190" text-anchor="middle" style="font-size:17px;fill:var(--pencil-2)">report read ${shown.toLocaleString('en-US')}</text>`;
+    if(good && i === 3) g += `<g class="sv-rise">${boxT(x, 200, 205, 58, 'old version: 40,000', 'what the snapshot sees', {fs:18, ss:13, fill:'var(--leaf-soft)'})}</g>`;
+  });
+  if(read) g += `<rect class="nofx" x="${34 + read*235}" y="82" width="6" height="90" fill="var(--amber-2)"/>
+    <text class="t-sub" x="${36 + read*235}" y="76" text-anchor="middle">scan</text>`;
+  if(moved){
+    g += `<path class="${an(2,k,'sv-draw')}" style="--len:900" d="M140 86 C 300 10, 700 10, 850 86" fill="none" stroke="var(--flame)" stroke-width="3"/>
+      ${arrowHead(850, 86, 'd', 'var(--flame)')}
+      <text class="t-serif" x="495" y="18" text-anchor="middle" style="font-size:22px;fill:var(--flame-ink)">transfer: 5,000 from acc 1 to acc 4, committed</text>`;
+  }
+  const total = good ? 100000 : 10000 + 20000 + (read >= 3 ? 30000 : 0) + (read >= 4 ? 45000 : 0);
+  let msg, col = 'var(--ink)';
+  if(k === 0){ msg = 'money in the bank: 100,000'; }
+  else if(read < 4){ msg = `report's running sum: ${total.toLocaleString('en-US')}`; }
+  else if(good){ msg = 'report total: 100,000. Correct.'; col = 'var(--leaf)'; }
+  else { msg = 'report total: 105,000. Money that never existed.'; col = 'var(--flame-ink)'; }
+  g += `<text class="t-serif" x="495" y="${good?300:250}" text-anchor="middle" style="font-size:30px;fill:${col}">${msg}</text>`;
+  return SV(`0 0 1000 ${good?315:265}`, g);
+}
+
+/* updating in place destroys the value a reader still needs */
+function sceneOverwrite(k){
+  let g = `<rect x="130" y="20" width="620" height="110" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.6"/>
+    <text class="t-sub" x="148" y="44">heap page 0: one slot per row</text>
+    <rect x="160" y="56" width="560" height="56" rx="4" fill="${k?'var(--flame-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-mono" x="180" y="92" style="font-size:20px;fill:var(--ink)">(101, Asha, </text>
+    <text class="t-mono" x="330" y="92" style="font-size:20px;fill:${k?'var(--muted)':'var(--ink)'}">50000</text>
+    <text class="t-mono" x="400" y="92" style="font-size:20px;fill:var(--ink)">)</text>`;
+  g += person(880, 20, 'Asha', 'needs 50000', 'var(--pencil)');
+  if(k >= 1){
+    g += `<g class="${an(1,k,'sv-fade')}"><line x1="326" y1="86" x2="394" y2="86" stroke="var(--flame)" stroke-width="3.5"/>
+      <text class="t-mono" x="430" y="92" style="font-size:22px;fill:var(--flame-ink);font-weight:700">40000 ?</text>
+      <text class="t-serif" x="160" y="170" style="font-size:24px;fill:var(--flame-ink)">Ravi overwrote it in place, and has not committed.</text>
+      <text class="t-serif" x="160" y="204" style="font-size:24px;fill:var(--flame-ink)">Asha can only wait, or read a dirty 40000.</text></g>`;
+    g += `<path d="M836 80 C 800 80, 780 84, 740 84" class="wire live"/><text class="t-serif" x="790" y="66" style="font-size:30px;fill:var(--flame-ink)">?</text>`;
+  }
+  return SV('0 0 1000 220', g);
+}
+
+/* two versions, and nothing on them says which one is whose */
+function sceneWhich(k){
+  let g = boxT(150, 30, 480, 60, 'v1: (101, Asha, 50000)', '', {fs:22});
+  g += boxT(150, 110, 480, 60, 'v2: (101, Asha, 40000)', '', {fs:22, fill:'var(--amber-soft)', dash:true});
+  g += person(850, 40, 'Asha', 'which one is mine?', 'var(--pencil)');
+  if(k >= 1){
+    [60, 140].forEach((y,i)=> g += `<g class="${an(1,k,'sv-pop')}" ${D(i*150)}><text class="t-serif" x="650" y="${y+8}" style="font-size:20px;fill:var(--flame-ink)">written by?  retired by?</text></g>`);
+    g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="150" y="206" style="font-size:22px;fill:var(--muted)">Nothing on a version says who created it, or whether it is still current.</text>`;
+  }
+  return SV('0 0 1000 220', g);
+}
+
+/* if DELETE erased the row, a count that started earlier would miss it */
+function sceneDeleteBad(k){
+  const ids = [101, 102, 103];
+  let g = boxT(40, 20, 330, 60, 'Report: count accounts', 'started when 3 accounts existed', {fill:'var(--pencil-soft)', fs:21});
+  ids.forEach((id,i)=>{
+    const x = 120 + i*260, gone = k >= 1 && id === 102;
+    g += `<rect x="${x}" y="110" width="210" height="60" rx="4" fill="${gone?'var(--paper)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.4" ${gone?'stroke-dasharray="8 6" opacity=".5"':''}/>
+      <text class="t-serif" x="${x+105}" y="148" text-anchor="middle" style="font-size:24px;${gone?'fill:var(--muted)':''}">acc ${id}</text>`;
+    if((k >= 1 && i === 0) || (k >= 2 && i === 2)) g += `<text class="t-serif" x="${x+105}" y="198" text-anchor="middle" style="font-size:20px;fill:var(--pencil-2)">counted</text>`;
+  });
+  if(k >= 1) g += `<text class="t-serif ${an(1,k,'sv-fade')}" x="505" y="100" text-anchor="middle" style="font-size:20px;fill:var(--flame-ink)">Ravi's DELETE erases 102 before the report reaches it</text>`;
+  if(k >= 2) g += `<text class="t-serif ${an(2,k,'sv-pop')}" x="500" y="248" text-anchor="middle" style="font-size:30px;fill:var(--flame-ink)">Report says 2. But 3 accounts existed when it began.</text>`;
+  return SV('0 0 1000 265', g);
+}
+
+/* the undo cost of a design that overwrites in place */
+function sceneUndo(k){
+  let g = `<text class="t-sub" x="60" y="26">a design that overwrites rows in place</text>`;
+  g += boxT(60, 40, 380, 64, 'row 101: 45000', 'overwritten by txn 900', {fill:'var(--flame-soft)', fs:24});
+  g += boxT(560, 40, 380, 64, 'undo log: 40000', 'the old value, copied aside', {fill:'var(--pencil-soft)', fs:24});
+  if(k >= 1){
+    g += `<path class="sv-draw" style="--len:600" d="M750 106 C 750 170, 250 170, 250 108" fill="none" stroke="var(--flame)" stroke-width="3"/>${arrowHead(250,108,'u','var(--flame)')}
+      <text class="t-serif ${an(1,k,'sv-fade')}" x="500" y="196" text-anchor="middle" style="font-size:24px;fill:var(--flame-ink)">ROLLBACK must copy every old value back, row by row</text>
+      <text class="${an(1,k,'sv-fade')}" x="500" y="224" text-anchor="middle" style="font-size:18px;fill:var(--muted)">the bigger the failed transaction, the longer the undo takes</text>`;
+  }
+  return SV('0 0 1000 235', g);
+}
+
+/* 99% of rows match: an index means a random heap hop for almost every row */
+function sceneDots(){
+  let g = `<text class="t-sub" x="40" y="24">if 99% of 1M accounts were in Pune (each square: 10,000 rows)</text>`;
+  for(let i=0;i<100;i++){
+    const x = 40 + (i%20)*23, y = 36 + Math.floor(i/20)*23;
+    g += `<rect class="nofx" x="${x}" y="${y}" width="19" height="19" fill="${i===57?'var(--card)':'var(--amber)'}" stroke="var(--ink)" stroke-width="1.2"/>`;
+  }
+  g += boxT(540, 36, 420, 70, 'Index on branch', '990,000 random heap hops x 4.0', {fill:'var(--flame-soft)', fs:22});
+  g += boxT(540, 124, 420, 70, 'Sequential scan', '12,000 pages, read once, in order', {fill:'var(--leaf-soft)', fs:22});
+  return SV('0 0 1000 210', g);
+}
+
+/* 15,000 matches scattered across 12,000 pages */
+function sceneScatter(){
+  let g = `<text class="t-sub" x="60" y="24">accounts: 12,000 heap pages (a sample shown); dots are matching rows</text>`;
+  const hits = [[0,1],[1,3],[3,0],[3,2],[4,1],[6,2],[8,0],[8,3],[9,1],[10,2],[11,0]];
+  for(let i=0;i<12;i++) g += `<rect class="nofx" x="${60+i*74}" y="40" width="62" height="80" rx="3" fill="var(--card)" stroke="var(--ink)" stroke-width="2"/>`;
+  hits.forEach(([p,r])=> g += `<circle class="packet" cx="${80+p*74 + (r%2)*22}" cy="${58+r*16}" r="6" fill="var(--flame)" stroke="var(--ink)" stroke-width="1.3"/>`);
+  g += `<text class="t-serif" x="500" y="160" text-anchor="middle" style="font-size:26px">about 15,000 matching rows, spread over many pages</text>`;
+  return SV('0 0 1000 175', g);
+}
+
+/* comparing every account with every transaction */
+function sceneAllPairs(){
+  let g = `<text class="t-sub" x="60" y="24">Pune accounts</text><text class="t-sub" x="700" y="24">transactions</text>`;
+  const L = [0,1,2,3], R = [0,1,2,3,4];
+  L.forEach(i=> g += boxT(60, 36+i*44, 180, 34, 'account '+(i+1), '', {fs:16}));
+  R.forEach(j=> g += boxT(700, 36+j*36, 200, 28, 'txn '+(j+1), '', {fs:15}));
+  L.forEach(i=> R.forEach(j=> g += `<path class="sv-draw" style="--len:500;animation-delay:${(i*5+j)*40}ms" d="M240 ${53+i*44} L700 ${50+j*36}" stroke="var(--flame)" stroke-width="1.4" fill="none" opacity=".7"/>`));
+  g += `<text class="t-serif" x="470" y="236" text-anchor="middle" style="font-size:24px;fill:var(--flame-ink)">4 x 5 = 20 comparisons here. 300,000 x 50,000,000 at NeoBank scale.</text>`;
+  return SV('0 0 1000 250', g);
+}
+
+/* if every node built its full result first */
+function sceneMaterialize(){
+  let g = boxT(40, 20, 170, 60, 'client', 'waiting for row 1...', {fill:'var(--pencil-soft)', ss:13});
+  [['Limit (3)', 20], ['Sort', 104], ['Seq Scan', 188]].forEach((n,i)=>{
+    g += boxT(330, n[1], 220, 60, n[0], '', {fs:21});
+    g += `<rect x="580" y="${n[1]+6}" width="${360 - i*20}" height="48" rx="3" fill="var(--flame-soft)" stroke="var(--ink)" stroke-width="2" stroke-dasharray="7 5"/>
+      <text x="${590}" y="${n[1]+36}" style="font-size:16px;fill:var(--flame-ink)">${i===0?'waits for Sort to finish':'holds its whole result: up to 1,000,000 rows'}</text>`;
+  });
+  g += `<path d="M210 50 H326" stroke="var(--ink)" stroke-width="2.2" stroke-dasharray="6 5"/>`;
+  return SV('0 0 1000 260', g);
+}
+
+/* the raw string, as the engine first receives it */
+const RAWQ = "SELECT holder_name, balance FROM accounts WHERE branch = 'Pune' AND balance > 100000;";
+function charCells(){
+  return `<div class="chars">${[...RAWQ].map(c=>`<span class="chr">${c===' '?'&nbsp;':c==='>'?'&gt;':c}</span>`).join('')}</div>`;
+}
+
+/* =====================================================================
+   The story spine: every chapter states its requirement first, then
+   works through its cases as problem -> see the problem -> solve it.
    ===================================================================== */
 const CHAPTERS = [
- {n:1, t:'One table, one story',        of:['title','agenda','neobank']},
- {n:2, t:'Readers and writers',          of:['recap','problem','promise','longread']},
- {n:3, t:'Row versions',                 of:['appendonly','xminxmax','rule','trace','columns']},
- {n:4, t:'Deleting, undoing, cleaning',  of:['delete','rollback','rbtrace','vacuum','advantages','bloat','autovac','oracle']},
- {n:5, t:'From SQL text to a query tree',of:['pipeline','running','parser','parsetree','analyzer','rewriter']},
- {n:6, t:'Choosing the cheapest plan',   of:['costphil','stats','scans','joins','decision']},
- {n:7, t:'Running the plan',             of:['volcano','exectrace','wrap','exit','questions']}
+ {n:1, t:'One table, one story',          of:['title','agenda','neobank']},
+ {n:2, t:'Readers and writers',            of:['recap','casewait','casesum']},
+ {n:3, t:'Row versions',                   of:['appendonly','xminxmax','rule','trace','columns']},
+ {n:4, t:'Deleting, undoing, cleaning',    of:['delete','rollback','rbtrace','vacuum','bloat','advantages','oracle']},
+ {n:5, t:'From SQL text to a query tree',  of:['pipeline','running','parser','analyzer','rewriter']},
+ {n:6, t:'Choosing the cheapest plan',     of:['costphil','stats','scans','joins','decision']},
+ {n:7, t:'Running the plan',               of:['volcano','exectrace','wrap','exit','questions']}
 ];
 
+/* problem = the requirement, detail = why it is hard, next = what we will solve */
 const OPENERS = {
- 2:{when:'Monday morning at NeoBank',
-    problem:'Thousands of customers read balances while tellers write transfers, often to the same rows.',
-    detail:'If every write locks its row, every read of that row waits. The bank would move at the speed of its slowest transfer.',
-    next:'We already have tools for concurrency. First, let us see what they cost.'},
- 3:{when:'Under the hood',
-    problem:'How can Asha read 50000 while Ravi is writing 40000 to the very same row?',
-    detail:'Because PostgreSQL never overwrites a row. It keeps both versions and stamps each one with the transactions that created and expired it.',
-    next:'Three pieces: append-only versions, two hidden columns and one visibility rule.'},
- 4:{when:'Ravi changes his mind',
-    problem:'If nothing is ever overwritten, what do DELETE and ROLLBACK actually do?',
-    detail:'And if every UPDATE leaves an old version behind, who clears the old versions away, and what happens if nobody does?',
-    next:'The same xmin/xmax mechanism answers all three questions.'},
- 5:{when:'The pivot',
-    problem:'A perfectly isolated transaction can still be slow.',
-    detail:'So far: many transactions, one row. From here on: one query, a million rows.',
-    next:'What is the very first thing the engine does with the string SELECT ...?'},
+ 1:{when:'Before any mechanism',
+    problem:'We need one shared example that every idea in the lecture can be tested on: one table, one reader, one writer.',
+    detail:'Abstract rules about transactions and query plans are hard to follow. A concrete row, with names and balances, lets us check every rule by hand.',
+    next:'This chapter sets up NeoBank. The cases start in chapter 2.'},
+ 2:{when:'What the bank needs',
+    problem:'Thousands of people must read balances while tellers write transfers, often to the same rows. Nobody may see half-finished work, and nobody should wait for no reason.',
+    detail:'The obvious tool is a lock. But a lock that protects a writer makes every reader of that row wait, and a long report would freeze the bank.',
+    next:'Two cases: a reader who must not wait for a writer, and a long report that must add up.'},
+ 3:{when:'What the engine needs',
+    problem:'To give a reader the old value while a writer creates the new one, the engine needs three things: a place to keep both versions, a label on each version, and a rule that picks the right one.',
+    detail:'All of this has to work for every row, for thousands of concurrent transactions, without a central list of who can see what.',
+    next:'Four cases, one per missing piece, then a full trace.'},
+ 4:{when:'The rest of the job',
+    problem:'The versioning scheme must also handle removing rows, cancelling work, and clearing away the old versions it creates.',
+    detail:'If nothing is ever overwritten, then DELETE, ROLLBACK and cleanup all need new answers, and the table must not grow without limit.',
+    next:'Six cases, from a single DELETE to a job that rewrites a million rows.'},
+ 5:{when:'Part 2 begins',
+    problem:'The engine receives a flat string of characters. Before it can run anything, it must check the grammar, check the names, types and permissions, and expand any views.',
+    detail:'A perfectly isolated transaction can still be slow, and a query that fails should fail early, with a clear error, before any work is done.',
+    next:'Three cases: is it valid SQL, does it mean something, and what does a view turn into?'},
  6:{when:'Stage 3 of 4',
-    problem:'The same query can be answered in many ways, and some are far slower than others.',
-    detail:'Scan the whole table? Use an index on branch, or one on balance? Once joins appear, the options multiply.',
-    next:'Guessing is not a strategy. The planner estimates a cost for every option.'},
+    problem:'Pick the fastest way to get about 15,000 rows out of 1,000,000, without actually running every option to find out.',
+    detail:'There are many ways to answer the same query, and the fastest one depends on how the data is distributed, which the planner cannot see directly.',
+    next:'Five cases: index or not, how many rows match, how to read, how to join, and the final choice.'},
  7:{when:'Stage 4 of 4',
-    problem:'The planner hands over a tree. Something has to run it.',
-    detail:'The executor runs it on demand, one row at a time. It is also where the MVCC rule from Part 1 physically happens.',
-    next:'Three tiny functions power the whole thing.'}
+    problem:'Turn the plan tree into rows for the client: start returning rows early, use little memory, and apply the MVCC visibility rule to every tuple.',
+    detail:'A plan is only a description. Something has to drive it, one row at a time, and this is where Part 1 and Part 2 finally meet.',
+    next:'Two cases: how rows flow through a plan, and which rows reach the client.'}
 };
+
+/* the three phases of every case, shown as a strip at the top of the slide */
+const PH = {problem:'The problem', see:'See the problem', solve:'Solve it'};
+function caseBar(sl, st){
+  const ph = sl.steps[st].ph;
+  const order = ['problem','see','solve'];
+  const cur = order.indexOf(ph);
+  const sols = sl.steps.filter(s=>s.ph==='solve').length;
+  const k = sl.steps.slice(0, st+1).filter(s=>s.ph==='solve').length;
+  const pills = order.map((p,i)=>`<span class="ph ${i===cur?'on':i<cur?'done':''}">${i+1}. ${PH[p]}${p==='solve'&&ph==='solve'?` (step ${k} of ${sols})`:''}</span>`)
+    .join('<span class="ph-sep"></span>');
+  return `<div class="casebar"><span class="case-n">Case ${sl.caseNo}</span>${pills}</div>
+    ${ph!=='problem'?`<div class="caseq"><b>Problem:</b> ${sl.problem}</div>`:''}`;
+}
+const problemCard = (sl, extra='') => `<div class="probcard pop">
+    <div class="pk">The problem</div><div class="pq">${sl.problem}</div>${extra?`<p>${extra}</p>`:''}</div>`;
 
 function chapterBody(ch, st){
   const o = OPENERS[ch.n] || {};
+  const cases = ch.of.map(id => SLIDE[id]).filter(d => d && d.problem);
   return `<div class="chapter">
     <div class="ch-rail"><span class="ch-num">${String(ch.n).padStart(2,'0')}</span>
       <span class="ch-of">Chapter ${ch.n} of ${CHAPTERS.length}</span></div>
     <div class="ch-body">
       <div class="ch-when">${o.when||''}</div>
       <h2 class="ch-title">${ch.t}</h2>
-      ${st>=1?`<p class="ch-problem ${pp(1,st)}">${o.problem||''}</p>`:''}
-      ${st>=2?`<p class="ch-detail ${pp(2,st)}">${o.detail||''}</p>`:''}
-      ${st>=3?`<p class="ch-next ${pp(3,st)}">${o.next||''}</p>`:''}
+      ${st>=1?`<div class="req ${pp(1,st)}"><div class="req-k">The requirement</div><p>${o.problem}</p></div>`:''}
+      ${st>=2?`<div class="hard ${pp(2,st)}"><span class="req-k">Why it is hard</span> ${o.detail}</div>`:''}
+      ${st>=3?`<div class="caselist ${pp(3,st)}">${cases.length ? cases.map(c=>`<div class="cl"><span class="cl-n">Case ${c.caseNo}</span><span class="cl-t">${c.title}</span></div>`).join('') : `<div class="cl"><span class="cl-t">${o.next}</span></div>`}</div>`:''}
     </div></div>`;
 }
+
+const P   = note => ({ph:'problem', note});
+const SEE = note => ({ph:'see', note});
+const SOL = note => ({ph:'solve', note});
 
 const DECK = [
 /* ------------------------------ chapter 1 ------------------------------ */
@@ -1243,20 +1464,20 @@ const DECK = [
   tag:'agenda', steps:[
   {note:'Part one, about 39 minutes: concurrency and MVCC. Why concurrent reads never wait.'},
   {note:'Part two, about 33 minutes: query processing. What the engine does with your SQL text, stage by stage.'},
-  {note:'One story ties the two halves together: NeoBank, with Asha the reader and Ravi the writer.'}],
+  {note:'How every topic runs: each chapter opens with its requirement. Then each case goes the same way: the problem, a picture of the problem, and a visual solution built step by step.'}],
   body:(st)=>`
     <div class="cards" style="grid-template-columns:1fr 1fr;gap:.9rem">
       ${card('Part 1, about 39 min','Concurrency & MVCC',
-        '<span class="ul">Transaction toolbox recap<br>The MVCC promise: reads never wait<br>Row versions and the hidden xmin / xmax<br>Dead tuples, VACUUM and bloat<br>Contrast: how Oracle does it</span>','tl','lock',pp(0,st))}
+        '<span class="ul">Readers and writers<br>Row versions: xmin and xmax<br>DELETE, ROLLBACK and VACUUM<br>Bloat, and how Oracle differs</span>','tl','lock',pp(0,st))}
       ${st>=1?card('Part 2, about 33 min','Query Processing',
-        '<span class="ul">The four-stage pipeline<br>Parser: the parse tree<br>Analyzer / Rewriter: catalog and views<br>Planner: statistics and cost<br>Executor: the Volcano model</span>','pp','search',pp(1,st)):''}
+        '<span class="ul">Parser and parse tree<br>Analyzer and view rewriting<br>Planner: statistics and cost<br>Executor: the Volcano model</span>','pp','search',pp(1,st)):''}
     </div>
-    ${st>=2?`<p class="lede ${pp(2,st)}">One continuous story runs through every concept: <b>NeoBank</b>, with Asha the reader and Ravi the writer.</p>`:''}` },
+    ${st>=2?`<div class="howto ${pp(2,st)}"><span class="ph on">Chapter: the requirement</span><span class="ph-sep"></span><span class="ph">1. The problem</span><span class="ph-sep"></span><span class="ph">2. See the problem</span><span class="ph-sep"></span><span class="ph">3. Solve it, step by step</span></div>`:''}` },
 
 { id:'neobank', kick:'one table, one story', eyebrow:'The running example', title:'NeoBank',
   tag:'setup', steps:[
   {note:'Everything today happens on this one table: accounts, with an account number, a holder name, a balance and a branch.'},
-  {note:'Row 101 is Asha\'s account, with a balance of 50,000 in the Pune branch. Keep this row in mind: the anomaly, MVCC, xmin/xmax, VACUUM and the whole query pipeline all run on it.'},
+  {note:'Row 101 is Asha\'s account, with a balance of 50,000 in the Pune branch. Keep this row in mind: every case in the lecture is tested on it.'},
   {note:'Two characters. Asha reads: a customer checking her balance, or a report running SELECT. Ravi writes: a teller processing a transfer with an UPDATE.'}],
   body:(st)=>`
     <div style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:1rem;align-items:center">
@@ -1273,111 +1494,132 @@ const DECK = [
       ${card('The writer','Ravi','A teller processing a transfer: an <code>UPDATE</code> on the fly.','warn','bolt','pop d2')}</div>`:''}` },
 
 /* ------------------------------ chapter 2 ------------------------------ */
-{ id:'recap', kick:'the tools we already have', eyebrow:'Recap', title:'Transaction-level optimization',
+{ id:'recap', kick:'the tools we already have', eyebrow:'Before the cases', title:'The concurrency toolbox',
   tag:'recap', steps:[
   {note:'Quick recall: what problem do transactions solve? Ask for one anomaly. Then the toolbox. First, isolation levels: Read Committed, Repeatable Read, Serializable.'},
   {note:'Explicit locking: LOCK TABLE, or SELECT ... FOR UPDATE. Precise control, paid for in blocking.'},
   {note:'Advisory locks: application-defined locks for coordination outside the table data.'},
-  {note:'And underneath all of them: MVCC, PostgreSQL\'s default concurrency mechanism.'},
-  {note:'The bridge question: if we solve every anomaly with locks, readers queue behind writers. Can Asha read a consistent balance without waiting for Ravi? PostgreSQL says yes.'}],
+  {note:'And underneath all of them: MVCC, PostgreSQL\'s default concurrency mechanism. The two cases in this chapter show why it has to exist.'}],
   body:(st)=>`
     <div class="cards" style="grid-template-columns:1fr 1fr;gap:.6rem">
       ${card('Isolation levels','Correctness vs. concurrency','Read Committed, Repeatable Read and Serializable trade one against the other.','tl','layers',pp(0,st))}
       ${st>=1?card('Explicit locking','Precise, but blocking','<code>LOCK TABLE</code> and <code>SELECT ... FOR UPDATE</code> give control at the cost of waiting.','warn','lock',pp(1,st)):''}
       ${st>=2?card('Advisory locks','Your own locks','<code>pg_advisory_lock</code> coordinates work outside the table data.','pp','shield',pp(2,st)):''}
       ${st>=3?card('Underneath it all','MVCC','The engine beneath every tool above: PostgreSQL\'s default concurrency mechanism.','good','db',pp(3,st)):''}
-    </div>
-    ${st>=4?`<p class="lede ${pp(4,st)}">Locks everywhere means readers queue behind writers. <b>Can Asha read a consistent balance without waiting for Ravi?</b></p>`:''}` },
+    </div>` },
 
-{ id:'problem', kick:'the pain we want to remove', eyebrow:'The problem', title:'Locks make readers wait',
-  tag:'problem', steps:[
-  {note:'Account 101 holds 50,000, committed. Nothing is happening yet.'},
-  {note:'Ravi begins a transfer: UPDATE accounts SET balance = 40000 WHERE acc_no = 101. His transaction is open. He has not committed.'},
-  {note:'Asha asks for her balance. Under pure locking her SELECT blocks on Ravi\'s row lock. She waits for a transfer that has not even committed. With thousands of reads a second, that is unacceptable.'},
-  {note:'Name the two things precisely. The anomaly we must still prevent: the dirty read, because Asha must never see the uncommitted 40000. The pain we want to remove: the reader waiting at all.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneLock(st)}</div>
-    ${st>=3?`<div class="cards" style="grid-template-columns:1fr 1fr">
-      ${card('Must still prevent','The dirty read','T2 must never see the uncommitted 40000.','warn','ban','pop d1')}
-      ${card('Want to remove','Reader blocking','A SELECT should not wait for somebody else\'s UPDATE.','tl','clock','pop d2')}</div>`:''}` },
+{ id:'casewait', kick:'readers vs. writers', eyebrow:'Readers and writers', title:'Asha must not wait for Ravi',
+  tag:'case', problem:'Ravi is in the middle of a transfer on account 101. Asha asks for her balance. Does she have to wait for him?',
+  steps:[
+  P('State the problem. Ravi has started an UPDATE on account 101 and has not committed. At that moment Asha asks for her balance. Let the class answer: should she wait?'),
+  SEE('Here is the problem, drawn. Under pure locking, Ravi\'s UPDATE takes a lock on the row. The row now holds an uncommitted 40,000.'),
+  SEE('Asha\'s SELECT reaches the lock and stops. She waits for a transfer that has not even committed. Two things to name: the dirty read we must still prevent, and the waiting we want to remove.'),
+  SOL('Solution, step one: keep two versions of the row. v1, 50,000, is committed; Ravi\'s v2, 40,000, is not. Asha reads v1 instantly, and correctly, because 50,000 is the only balance that officially exists.'),
+  SOL('Step two, the boundary: writers still block writers on the same row. If Kiran also updates account 101, he queues behind Ravi. MVCC removes reader-writer blocking, not writer-writer blocking.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.casewait) + `<div class="stage-row">${sceneLock(0)}</div>`;
+    if(st<=2) return `<div class="stage-row">${sceneLock(st)}</div>
+      ${st===2?`<div class="cards" style="grid-template-columns:1fr 1fr">
+        ${card('Must still prevent','The dirty read','Asha must never see the uncommitted 40000.','warn','ban','pop d1')}
+        ${card('Want to remove','The waiting','A SELECT should not wait for somebody else\'s UPDATE.','tl','clock','pop d2')}</div>`:''}`;
+    return `${st===3?`<p class="quote pop">"Readers and writers do not block each other: a SELECT never waits on an UPDATE."</p>`:''}
+      <div class="stage-row">${sceneMvcc(st-2)}</div>
+      ${st===4?`<p class="lede pop">Every transaction reads a <b>consistent snapshot</b>: the versions that were committed when its snapshot was taken.</p>`:''}`; } },
 
-{ id:'promise', kick:'multi-version concurrency control', eyebrow:'MVCC', title:'The core promise',
-  tag:'mvcc', steps:[
-  {note:'Instead of one copy guarded by locks, the database keeps multiple versions of the row. v1 with 50,000 is committed; Ravi\'s v2 with 40,000 is not.'},
-  {note:'Asha\'s SELECT returns 50,000 instantly. No wait. And it is correct: Ravi has not committed, so 50,000 is the only balance that officially exists.'},
-  {note:'Know the boundary. Writers still block writers on the same row: if Kiran also updates account 101, he queues behind Ravi. MVCC removes reader-writer blocking, not writer-writer blocking.'}],
-  body:(st)=>`
-    <p class="quote">"Readers and writers do not block each other: a SELECT never waits on an UPDATE."</p>
-    <div class="stage-row">${sceneMvcc(st)}</div>
-    <p class="lede">Every transaction sees a <b>consistent snapshot</b>: the versions that were committed when its snapshot was taken.</p>` },
-
-{ id:'longread', kick:'one frozen instant', eyebrow:'Why it matters', title:'Consistent snapshots for long reads',
-  tag:'mvcc', steps:[
-  {note:'A month-end report sums every balance. It runs for about five minutes, and its snapshot is taken the moment it starts.'},
-  {note:'Meanwhile hundreds of transfers commit. With MVCC the report still sees one consistent moment in time; none of those commits leak into its sum.'},
-  {note:'Without MVCC you have two bad options: lock the whole table and freeze the bank, or read an inconsistent sum that never existed at any single moment.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneSnapshot(st)}</div>
-    ${st>=2?`<div class="cards" style="grid-template-columns:1fr 1fr">
-      ${card('With MVCC','One consistent instant','The report sees the bank as it was at the start, even as transfers commit around it.','good','shield','pop d1')}
-      ${card('Without MVCC','Freeze or be wrong','Lock the whole table and the bank stops, or read a sum that never existed.','warn','ban','pop d2')}</div>`:''}` },
+{ id:'casesum', kick:'one frozen instant', eyebrow:'Readers and writers', title:'A long report must add up',
+  tag:'case', problem:'A 5-minute report sums every balance while transfers keep committing. Will its total be right?',
+  steps:[
+  P('Four accounts, 100,000 in total. A month-end report will add them up, and it takes minutes. Transfers keep committing while it runs. Ask: will the total be right?'),
+  SEE('The report starts scanning. It reads account 1, 10,000, and account 2, 20,000. Running sum: 30,000.'),
+  SEE('Now a transfer commits: 5,000 moves from account 1, already read, to account 4, not yet read.'),
+  SEE('The report reads account 3 and account 4, which now holds 45,000. Total: 105,000. The report has invented 5,000 that never existed at any single moment. Without MVCC, the only other fix is to lock the whole table and freeze the bank.'),
+  SOL('Solution, step one: the report takes a snapshot when it starts. Any transfer that commits after that line does not count for this report.'),
+  SOL('Step two: account 4 still has its old version, 40,000, in the heap. The report reads that version, so the total is 100,000: the bank exactly as it was when the report began.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.casesum) + `<div class="stage-row">${sceneSum(0)}</div>`;
+    if(st<=3) return `<div class="stage-row">${sceneSum(st)}</div>`;
+    if(st===4) return `<div class="stage-row">${sceneSnapshot(1)}</div>
+      <p class="lede pop">The snapshot line is drawn when the report starts. <b>Commits after it are invisible to this report.</b></p>`;
+    return `<div class="stage-row">${sceneSum(4, true)}</div>`; } },
 
 /* ------------------------------ chapter 3 ------------------------------ */
-{ id:'appendonly', kick:'implementing MVCC, 1 of 3', eyebrow:'Row versions', title:'UPDATE appends, never overwrites',
-  tag:'mvcc', steps:[
-  {note:'Before Ravi\'s UPDATE, the heap page holds one version of row 101: v1, 50,000, at location (0,1).'},
-  {note:'The UPDATE does not modify v1 in place. It marks v1 as expired and appends a brand-new version, v2, at (0,2). That is exactly why Asha\'s read did not wait: her answer, v1, was never overwritten.'},
-  {note:'Vocabulary: each physical version is a tuple. Expired versions awaiting cleanup are dead tuples. You can prove the append yourself: select ctid before and after the UPDATE and watch it change.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneHeap(st)}</div>
-    ${st>=2?`<div class="cards ${pp(2,st)}" style="grid-template-columns:1fr 1fr">
-      ${card('Vocabulary','Tuple and dead tuple','Each physical version is a <b>tuple</b>. Expired versions waiting for cleanup are <b>dead tuples</b>.','tl','layers')}
-      ${card('Prove it','Watch the ctid move','<code>SELECT ctid, * FROM accounts;</code> before and after the UPDATE.','pp','search')}</div>`:''}` },
+{ id:'appendonly', kick:'piece 1 of 3: a place for both versions', eyebrow:'Row versions', title:'Keep the old value while writing the new one',
+  tag:'case', problem:'Ravi changes 50000 to 40000. Until he commits, Asha still needs 50000. Where does 50000 live?',
+  steps:[
+  P('Ravi is about to change 50,000 to 40,000. Until he commits, Asha still needs to see 50,000. So where does the old value live while the new one is being written?'),
+  SEE('The naive answer: overwrite the slot in place. Now 50,000 is gone. Asha can either wait for Ravi, or read a dirty 40,000. Both are exactly what we ruled out in chapter 2.'),
+  SOL('Solution, step one: UPDATE never modifies in place. It marks v1 as expired and appends a brand-new version, v2, at a new location, (0,2). v1 is untouched, so Asha can still read it.'),
+  SOL('Step two, vocabulary and proof. Each physical version is a tuple; expired versions waiting for cleanup are dead tuples. Select ctid before and after an UPDATE and watch the location change.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.appendonly) + `<div class="stage-row">${sceneOverwrite(0)}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneOverwrite(1)}</div>`;
+    return `<div class="stage-row">${sceneHeap(1)}</div>
+      ${st===3?`<div class="cards pop" style="grid-template-columns:1fr 1fr">
+        ${card('Vocabulary','Tuple and dead tuple','Each physical version is a <b>tuple</b>. Expired versions waiting for cleanup are <b>dead tuples</b>.','tl','layers')}
+        ${card('Prove it','Watch the ctid move','<code>SELECT ctid, * FROM accounts;</code> before and after the UPDATE.','pp','search')}</div>`:''}`; } },
 
-{ id:'xminxmax', kick:'implementing MVCC, 2 of 3', eyebrow:'Visibility bookkeeping', title:'xmin and xmax',
-  tag:'mvcc', steps:[
-  {note:'Every transaction gets a monotonically increasing transaction ID, an XID. Every tuple carries two hidden columns. xmin: the XID of the transaction that created this version, the INSERT or the UPDATE that produced it.'},
-  {note:'xmax: the XID of the transaction that expired this version, a superseding UPDATE or a DELETE. Zero means the version is still current.'},
-  {note:'These columns are hidden, but you can ask for them by name. Here is row 101 after Ravi\'s UPDATE: two versions, and the XIDs tell the story.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneHeader(st)}</div>
-    ${st>=2?`<div class="${pp(2,st)}" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:center">
+{ id:'xminxmax', kick:'piece 2 of 3: a label on each version', eyebrow:'Row versions', title:'Tell the versions apart',
+  tag:'case', problem:'The heap now holds two versions of row 101. How does a reader know which one belongs to its moment in time?',
+  steps:[
+  P('We now have two versions of row 101 side by side. Asha has to pick one. How?'),
+  SEE('Look closely: nothing on either version says who created it, or whether it is still current. Without that, no reader can choose.'),
+  SOL('Solution, step one: every transaction gets a monotonically increasing ID, its XID. Each tuple is stamped with xmin, the XID of the transaction that created it: the INSERT, or the UPDATE that produced it.'),
+  SOL('Step two: each tuple is also stamped with xmax, the XID of the transaction that expired it, by an UPDATE or DELETE. Zero means still current.'),
+  SOL('Step three: these columns are hidden, but you can ask for them by name. Row 101 after Ravi\'s UPDATE: two versions, and the XIDs tell the whole story.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.xminxmax) + `<div class="stage-row">${sceneWhich(0)}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneWhich(1)}</div>`;
+    if(st<=3) return `<div class="stage-row">${sceneHeader(st-2)}</div>`;
+    return `<div class="pop" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:center">
       ${sql(`${K('SELECT')} xmin, xmax, acc_no, balance
   ${K('FROM')} accounts;`)}
       ${rowsTable(['xmin','xmax','acc_no','balance'],[['500','802','101','50000'],['802','0','101','40000']], 9, '1fr 1fr 1fr 1fr')}
-    </div>`:''}` },
+    </div>`; } },
 
-{ id:'rule', kick:'the logic run on every tuple', eyebrow:'The rule', title:'Which version can I see?',
-  tag:'mvcc', steps:[
-  {note:'A tuple is visible to my snapshot only if two things hold. Rule one: created and visible. Its xmin committed at or before the moment my snapshot was taken.'},
-  {note:'Rule two: not yet expired. Its xmax is zero, or the transaction in xmax had not committed when my snapshot was taken.'},
-  {note:'Both rules, joined by AND. The executor runs this on every tuple it touches. On the next slide the class applies it themselves.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneRule(st)}</div>
-    <p class="lede">A tuple is visible to my snapshot only if <b>Rule 1 AND Rule 2</b> both hold.</p>` },
+{ id:'rule', kick:'piece 3 of 3: a rule that picks', eyebrow:'Row versions', title:'Decide what a reader may see',
+  tag:'case', problem:'Each version now carries xmin and xmax. What exact test turns those two numbers into "visible" or "not visible"?',
+  steps:[
+  P('Every version has two numbers now. We need a precise test: numbers in, yes or no out.'),
+  SEE('Four real tuples, and a reader whose snapshot saw 500 and 802 commit while 905 is still running. Can the class classify them? Without a rule, the answers are guesses.'),
+  SOL('Solution, rule one: created and visible. The tuple\'s xmin must have committed at or before my snapshot was taken.'),
+  SOL('Rule two: not yet expired. Its xmax is zero, or the transaction in xmax had not committed when my snapshot was taken.'),
+  SOL('Both rules, joined by AND. Now the four tuples classify themselves: A visible, B invisible by rule one, C invisible by rule two, D visible because 905 has not committed. The executor runs this on every tuple it touches.')],
+  body:(st)=>{
+    const rows = (ans) => rowsTable(['Tuple','xmin','xmax','Visible?'],[
+      ['A','500 (committed)','0', ans?'yes':'?'],
+      ['B','905 (running)','0', ans?'no: rule 1':'?'],
+      ['C','500 (committed)','802 (committed)', ans?'no: rule 2':'?'],
+      ['D','802 (committed)','905 (running)', ans?'yes':'?']], 9, '.5fr 1.2fr 1.2fr 1fr');
+    if(st===0) return problemCard(SLIDE.rule) + `<div class="stage-row">${sceneRule(-1)}</div>`;
+    if(st===1) return `<p class="lede pop">Reader's snapshot: <b>500 and 802 had committed; 905 is still running.</b></p>${rows(false)}`;
+    return `<div class="stage-row">${sceneRule(st-2)}</div>${st===4?`<div class="pop">${rows(true)}</div>`:''}`; } },
 
-{ id:'trace', kick:'apply the rule before each reveal', eyebrow:'Worked example, account 101', title:'Tracing xmin and xmax',
-  tag:'centerpiece', steps:[
-  {note:'The centerpiece: walk it row by row. Transaction 500 inserted the row long ago. v1 holds 50,000 with xmin 500 and xmax 0.'},
-  {note:'Transaction 802, Ravi, runs the UPDATE and has not committed. v1 gets xmax 802. v2 is born with xmin 802 and xmax 0.'},
-  {note:'Transaction 803, Asha, runs a SELECT. Ask the class to apply the rule first. v1: xmax 802 has not committed, so v1 is visible. v2: xmin 802 has not committed, so v2 is invisible. She sees 50,000.'},
-  {note:'Now 802 commits, and transaction 804 runs a SELECT. v2 is visible and shows 40,000. v1 is expired for everyone new: it is now a dead tuple.'}],
-  body:(st)=>`
-    <div class="stage-row" style="flex:0 0 auto">${sceneTuples(TRACE[st], st, true)}</div>
-    ${rowsTable(['XID','Type','Event','Reader sees'],[
-      ['500','write','Row inserted long ago','-'],
-      ['802','write','UPDATE, not committed','-'],
-      ['803','read','SELECT while 802 is open','50000'],
-      ['804','read','SELECT after 802 commits','40000']], st, '.6fr .6fr 2fr 1fr', st)}` },
+{ id:'trace', kick:'the three pieces, working together', eyebrow:'Worked example, account 101', title:'What does each reader see?',
+  tag:'case', problem:'Four moments in the life of account 101. At each one, apply the rule: what does the reader see?',
+  steps:[
+  P('Put the three pieces together on account 101. Four moments. At each one, the class applies the rule before you reveal it.'),
+  SEE('Moment one: transaction 500 inserted the row long ago. v1 holds 50,000 with xmin 500 and xmax 0.'),
+  SEE('Moment two: transaction 802, Ravi, runs the UPDATE and has not committed. v1 gets xmax 802; v2 is born with xmin 802.'),
+  SOL('Moment three: transaction 803, Asha, reads. v1: xmax 802 has not committed, so v1 is visible. v2: xmin 802 has not committed, so it is invisible. She sees 50,000.'),
+  SOL('Moment four: 802 commits, and transaction 804 reads. v2 is visible and shows 40,000. v1 is expired for everyone new: it is now a dead tuple.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.trace) + rowsTable(['XID','Type','Event','Reader sees'],[], 0, '.6fr .6fr 2fr 1fr');
+    const k = st-1;
+    return `<div class="stage-row" style="flex:0 0 auto">${sceneTuples(TRACE[k], k, true)}</div>
+      ${rowsTable(['XID','Type','Event','Reader sees'],[
+        ['500','write','Row inserted long ago','-'],
+        ['802','write','UPDATE, not committed','-'],
+        ['803','read','SELECT while 802 is open','50000'],
+        ['804','read','SELECT after 802 commits','40000']], k, '.6fr .6fr 2fr 1fr', k)}`; } },
 
-{ id:'columns', kick:'so the trace reads unambiguously', eyebrow:'Reading the trace', title:'What each column means',
+{ id:'columns', kick:'so the trace reads unambiguously', eyebrow:'Reference', title:'What each column means',
   tag:'reference', steps:[
   {note:'XID: the ID of the transaction driving the event. Type: write means INSERT, UPDATE or DELETE, which change tuples; read means SELECT, which only observes them. Event: the statement and its commit state.'},
   {note:'Heap tuple: the physical version in the table, v1, v2 and so on. xmin: the XID that created it. xmax: the XID that expired it, or zero if it is still current.'},
   {note:'The link: a write transaction\'s XID is stamped into xmin and/or xmax. A read transaction\'s XID never is; it only determines the snapshot.'}],
   body:(st)=>`
     <div class="cards" style="grid-template-columns:repeat(3,1fr);gap:.55rem">
-      ${card('XID','Who is acting','The transaction ID, increasing by one for each new transaction.','',  '', pp(0,st))}
+      ${card('XID','Who is acting','The transaction ID, increasing by one for each new transaction.','','', pp(0,st))}
       ${card('Type','Write or read','A write changes tuples; a read only observes them.','tl','', pp(0,st))}
       ${card('Event','What ran','The statement, and whether it has committed.','pp','', pp(0,st))}
       ${st>=1?card('Heap tuple','Which version','The physical row version (v1, v2, ...) and its balance.','','', pp(1,st)):''}
@@ -1387,51 +1629,88 @@ const DECK = [
     ${st>=2?`<p class="lede ${pp(2,st)}">A write transaction's XID is stamped into <b>xmin and/or xmax</b>. A read transaction's XID never is: <b>it only determines the snapshot</b>.</p>`:''}` },
 
 /* ------------------------------ chapter 4 ------------------------------ */
-{ id:'delete', kick:'same mechanism', eyebrow:'DELETE', title:'Mark, don\'t remove',
-  tag:'mvcc', steps:[
-  {note:'Ravi closes account 102: DELETE FROM accounts WHERE acc_no = 102. Watch the tuple.'},
-  {note:'It is not erased. Its xmax is set to Ravi\'s XID, 910. That is all a DELETE does.'},
-  {note:'So a report that started before Ravi committed still counts account 102. The version is still in the heap, and by the visibility rule it is still visible to that older snapshot.'}],
-  body:(st)=>`
-    ${sql(`${K('DELETE FROM')} accounts ${K('WHERE')} acc_no = ${S('102')};   ${C('-- Ravi closes an account')}`)}
-    <div class="stage-row">${sceneDelete(st)}</div>` },
+{ id:'delete', kick:'same mechanism', eyebrow:'Deleting, undoing, cleaning', title:'Deleting while someone is counting',
+  tag:'case', problem:'Ravi deletes account 102 while a report that started earlier is counting accounts. Should the report still count 102?',
+  steps:[
+  P('A report starts counting accounts while three exist. Midway, Ravi deletes account 102. Should the report count it?'),
+  SEE('Suppose DELETE physically erased the row. The report has counted 101; now 102 vanishes before the report reaches it.'),
+  SEE('The report finishes and says 2. But 3 accounts existed when it began: the same inconsistency as the broken sum.'),
+  SOL('Solution, step one: DELETE never erases. It writes Ravi\'s XID, 910, into the tuple\'s xmax. That is all a DELETE does.'),
+  SOL('Step two: the report\'s snapshot was taken before 910 committed, so by rule two the tuple is still visible to it. The report counts 3, which is correct for its moment in time.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.delete) + `<div class="stage-row">${sceneDeleteBad(0)}</div>`;
+    if(st<=2) return `<div class="stage-row">${sceneDeleteBad(st)}</div>`;
+    return `${sql(`${K('DELETE FROM')} accounts ${K('WHERE')} acc_no = ${S('102')};   ${C('-- Ravi closes an account')}`)}
+      <div class="stage-row">${sceneDelete(st-2)}</div>`; } },
 
-{ id:'rollback', kick:'a free lunch', eyebrow:'ROLLBACK', title:'Rollback is nearly free',
-  tag:'mvcc', steps:[
-  {note:'Transaction 900 updates account 101: v1 gets xmax 900, and a new v2 appears with xmin 900.'},
-  {note:'Then 900 issues ROLLBACK. It is simply marked aborted. v1\'s xmax is 900, but 900 aborted, so the expiry never took effect: everyone still sees v1. v2\'s xmin is 900, which aborted, so v2 is invisible to every transaction, forever.'},
-  {note:'There is nothing to undo. The new version was simply never marked committed. Hold on to this, because it is the big contrast with Oracle later in this chapter.'}],
-  body:(st)=>`<div class="stage-row">${sceneRollback(st)}</div>` },
+{ id:'rollback', kick:'a free lunch', eyebrow:'Deleting, undoing, cleaning', title:'Undoing a failed transaction',
+  tag:'case', problem:'Transaction 900 updates account 101, then fails and rolls back. How is its change undone?',
+  steps:[
+  P('Transaction 900 updates account 101: v1 gets xmax 900, and a new v2 appears with xmin 900. Then 900 fails. How is the change undone?'),
+  SEE('In a design that overwrites rows in place, the old value is copied to an undo log first.'),
+  SEE('To roll back, that design must copy every old value back, row by row. The bigger the failed transaction, the longer the undo takes.'),
+  SOL('Solution, step one: in PostgreSQL, transaction 900 is simply marked aborted. v1\'s xmax is 900, but 900 aborted, so the expiry never took effect. v2\'s xmin is 900, so v2 is invisible to everyone, forever.'),
+  SOL('Step two: there is nothing to undo. The new version was never marked committed, and no undo log was ever written. Keep this in mind for the Oracle case at the end of the chapter.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.rollback) + `<div class="stage-row">${sceneRollback(0)}</div>`;
+    if(st<=2) return `<div class="stage-row">${sceneUndo(st-1)}</div>`;
+    return `<div class="stage-row">${sceneRollback(st-2)}</div>`; } },
 
-{ id:'rbtrace', kick:'the rollback, applied', eyebrow:'Account 101 again', title:'Ravi closes the account, then aborts',
-  tag:'mvcc', steps:[
-  {note:'Start from the committed state after transaction 802: v2, 40,000, xmin 802, xmax 0. Live.'},
-  {note:'Ravi closes the account: transaction 905 runs DELETE. That sets v2\'s xmax to 905. The row is not removed, just marked, and 905 has not committed.'},
-  {note:'Ravi rolls back. Because 905 aborted, its expiry is ignored by everyone: v2 is live again and account 101 stays open. On disk xmax still holds 905, but an aborted XID means not expired; VACUUM tidies it later. Nothing was undone physically: the DELETE simply never counted.'}],
-  body:(st)=>`
-    <div class="stage-row" style="flex:0 0 auto">${sceneTuples(RB[st], st, true)}</div>
-    ${rowsTable(['XID','Type','Event','v2 is'],[
+{ id:'rbtrace', kick:'the rollback, applied', eyebrow:'Deleting, undoing, cleaning', title:'Delete, then change your mind',
+  tag:'case', problem:'Ravi runs DELETE on account 101, then rolls back. Is the account still open?',
+  steps:[
+  P('Start from the committed state after transaction 802: v2, 40,000, xmin 802, xmax 0. Ravi now closes the account, then changes his mind. Is it still open?'),
+  SEE('Transaction 905 runs DELETE. v2\'s xmax becomes 905. Read naively, the row now looks deleted.'),
+  SOL('Solution: Ravi rolls back, so 905 is aborted, and an aborted XID in xmax means "not expired". v2 is live again and account 101 stays open. On disk xmax still holds 905; VACUUM tidies it later. Nothing was undone physically.')],
+  body:(st)=>{
+    const tbl = rowsTable(['XID','Type','Event','v2 is'],[
       ['802','state','Committed state after 802','live'],
       ['905','write','DELETE, not committed','expiring'],
-      ['905','abort','ROLLBACK: 905 never commits','live again']], st, '.6fr .6fr 2fr 1fr', st)}` },
+      ['905','abort','ROLLBACK: 905 never commits','live again']], st, '.6fr .6fr 2fr 1fr', st);
+    if(st===0) return problemCard(SLIDE.rbtrace) + `<div class="stage-row" style="flex:0 0 auto">${sceneTuples(RB[0], 0, true)}</div>`;
+    return `<div class="stage-row" style="flex:0 0 auto">${sceneTuples(RB[st], st, true)}</div>${tbl}`; } },
 
-{ id:'vacuum', kick:'implementing MVCC, 3 of 3', eyebrow:'The garbage collector', title:'Dead tuples & VACUUM',
-  tag:'maintenance', steps:[
-  {note:'Dead tuples still occupy space in the heap. Here the red slots are dead: expired versions from committed UPDATEs and DELETEs.'},
-  {note:'VACUUM may reclaim a tuple only if it is dead AND no longer visible to ANY running transaction. That second condition matters: a long-running report can keep old versions alive, like these three.'},
-  {note:'Plain VACUUM marks the rest as free and reusable. Note what it does not do: the file stays the same size. It recycles space; it does not shrink the table.'},
-  {note:'VACUUM FULL rewrites the table compactly and does shrink it, but it takes an exclusive lock while it runs. Autovacuum is the background daemon that runs plain VACUUM automatically once dead tuples cross a threshold.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneVacuum(st)}</div>
-    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:.9rem;align-items:center">
-      ${sql(`${K('SELECT')} n_dead_tup
+{ id:'vacuum', kick:'the garbage collector', eyebrow:'Deleting, undoing, cleaning', title:'Who clears away the old versions?',
+  tag:'case', problem:'Every UPDATE and DELETE leaves a dead version behind. What removes them, and when is it safe to?',
+  steps:[
+  P('Every UPDATE and DELETE leaves a dead version in the heap. The red slots are dead tuples. Left alone, they stay there forever. What removes them, and when is that safe?'),
+  SEE('The catch: some dead versions are still needed. A long-running report took its snapshot earlier, and to it these three are still visible. Remove them and the report breaks.'),
+  SOL('Solution, step one: VACUUM reclaims a tuple only if it is dead AND invisible to every running transaction. The pinned three stay; the rest become free, reusable space. Note that the file does not shrink.'),
+  SOL('Step two: when the space must actually be returned, VACUUM FULL rewrites the table compactly, under an exclusive lock. And autovacuum runs plain VACUUM automatically once dead tuples cross a threshold.')],
+  body:(st)=>{
+    const top = st===0 ? problemCard(SLIDE.vacuum) : '';
+    return `${top}<div class="stage-row">${sceneVacuum(st===0?0:st)}</div>
+      <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:.9rem;align-items:center">
+        ${sql(`${K('SELECT')} n_dead_tup
   ${K('FROM')} pg_stat_user_tables;`)}
-      <p class="lede">${st<2?'VACUUM reclaims tuples that are <b>dead and invisible to every running transaction</b>.':st<3?'<b>Plain VACUUM recycles</b>: the space is reusable, but the file does not shrink.':'<b>VACUUM FULL rewrites</b> the table and shrinks it, under an exclusive lock.'}</p>
-    </div>` },
+        <p class="lede">${st===0?'Dead tuples are counted in <b>n_dead_tup</b>.':st===1?'Dead, but <b>still visible to a running report</b>: not safe to remove yet.':st===2?'<b>Plain VACUUM recycles</b>: the space is reusable, but the file does not shrink.':'<b>VACUUM FULL rewrites</b> and shrinks the table, under an exclusive lock.'}</p>
+      </div>`; } },
+
+{ id:'bloat', kick:'every choice is a trade-off', eyebrow:'Deleting, undoing, cleaning', title:'A job that rewrites every row',
+  tag:'case', problem:'A nightly interest job updates all 1,000,000 accounts. What happens to the table, and how do we keep it healthy?',
+  steps:[
+  P('accounts has one million rows: one million live tuples. Tonight an interest-credit job updates every one of them. What happens?'),
+  SEE('Every UPDATE appends a tuple. The heap now holds about two million tuples, half of them dead: roughly twice its logical size.'),
+  SEE('And everything slows down: sequential scans read twice the pages, and the cache holds only half as much useful data.'),
+  SOL('Solution, step one: autovacuum runs continuously. Dead tuples climb until they cross a threshold, then autovacuum reclaims them.'),
+  SOL('Step two: for a high-update table like accounts, lower autovacuum_vacuum_scale_factor. The threshold drops, cleanups are smaller and more frequent, and bloat never builds up.'),
+  SOL('Step three: VACUUM ANALYZE does two jobs at once. VACUUM reclaims dead tuples; ANALYZE refreshes statistics. Plant the seed: statistics are the hero of Part 2.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.bloat) + `<div class="stage-row">${sceneBloat(0)}</div>`;
+    if(st<=2) return `<div class="stage-row">${sceneBloat(1)}</div>
+      ${st===2?`<div class="cards" style="grid-template-columns:repeat(3,1fr)">
+        ${card('Disk','About 2x the size','The heap holds a dead copy of every row.','warn','db','pop d1')}
+        ${card('Scans','2x the pages','A sequential scan reads the dead tuples too.','warn','search','pop d2')}
+        ${card('Cache','Half the useful data','Dead tuples take memory live data needed.','warn','layers','pop d3')}</div>`:''}`;
+    return `<div class="stage-row">${sceneSaw(st>=4?1:0)}</div>
+      ${st===5?`<div class="pop" style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr);gap:.7rem;align-items:center">
+        ${sql(`${K('VACUUM ANALYZE')} accounts;`)}
+        ${card('VACUUM','Reclaims dead tuples','Frees their space for reuse.','good','trash')}
+        ${card('ANALYZE','Refreshes statistics','The planner depends on it.','pp','gauge')}</div>`:''}`; } },
 
 { id:'advantages', kick:'evaluating the design', eyebrow:'What append-only MVCC buys', title:'Four advantages',
   tag:'evaluation', steps:[
-  {note:'One: readers never block writers, and writers never block readers. The promise, delivered.'},
+  {note:'Step back and score the design. One: readers never block writers, and writers never block readers.'},
   {note:'Two: instant, cheap ROLLBACK. There is nothing to undo.'},
   {note:'Three: no separate undo storage to size or manage. Old versions live in the table itself.'},
   {note:'Four: consistent snapshots for long reports, with no table locks.'}],
@@ -1443,55 +1722,39 @@ const DECK = [
       ${st>=3?card('04','Long reports, no locks','Consistent snapshots without locking the table.','good','clock',pp(3,st)):''}
     </div>` },
 
-{ id:'bloat', kick:'every choice is a trade-off', eyebrow:'The cost', title:'Table bloat',
-  tag:'trade-off', steps:[
-  {note:'accounts has one million rows. That is one million live tuples in the heap.'},
-  {note:'A daily interest-credit job UPDATEs every one of them. Every UPDATE appends a tuple, so the heap now holds about two million tuples, half of them dead. The table is roughly twice its logical size.'},
-  {note:'And everything slows down: sequential scans read twice the pages, and the cache holds only half as much useful data. This is why autovacuum is not optional.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneBloat(st)}</div>
-    ${st>=2?`<div class="cards" style="grid-template-columns:repeat(3,1fr)">
-      ${card('Disk','About 2x the size','The heap holds a dead copy of every row.','warn','db','pop d1')}
-      ${card('Scans','2x the pages','A sequential scan reads the dead tuples too.','warn','search','pop d2')}
-      ${card('Cache','Half the useful data','Dead tuples take up memory that live data needed.','warn','layers','pop d3')}</div>`:''}` },
-
-{ id:'autovac', kick:'not optional maintenance', eyebrow:'Maintenance', title:'Autovacuum & VACUUM ANALYZE',
-  tag:'maintenance', steps:[
-  {note:'Autovacuum must run continuously. Dead tuples climb until they cross a threshold, then autovacuum reclaims them.'},
-  {note:'High-update tables like accounts may need it to run more often: lower autovacuum_vacuum_scale_factor and the threshold drops, so each cleanup is smaller and bloat never builds up.'},
-  {note:'And one command does two jobs. VACUUM reclaims dead tuples. ANALYZE refreshes the table\'s statistics. Plant the seed: statistics become the hero of the second half.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneSaw(st)}</div>
-    ${st>=2?`<div class="${pp(2,st)}" style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr);gap:.7rem;align-items:center">
-      ${sql(`${K('VACUUM ANALYZE')} accounts;`)}
-      ${card('VACUUM','Reclaims dead tuples','Frees their space for reuse.','good','trash')}
-      ${card('ANALYZE','Refreshes statistics','Hold that thought: the planner depends on it.','pp','gauge')}</div>`:''}` },
-
-{ id:'oracle', kick:'same concept, two designs', eyebrow:'Contrast', title:'How Oracle implements MVCC',
-  tag:'contrast', steps:[
-  {note:'A second design sharpens the evaluation. PostgreSQL keeps old versions in the table itself. Oracle overwrites the row in place and copies the old data into undo segments. Where old versions live: heap versus undo.'},
-  {note:'UPDATE: PostgreSQL appends a new tuple; Oracle overwrites in place and moves the old copy to undo.'},
-  {note:'ROLLBACK: nearly free in PostgreSQL, because the new version is simply ignored. Oracle must apply undo records, which is costly.'},
-  {note:'Cleanup: PostgreSQL carries the VACUUM burden and bloat in the table. Oracle recycles undo space automatically.'},
-  {note:'Classic failures: table bloat and XID wraparound for PostgreSQL; ORA-01555 snapshot too old for Oracle, when undo is recycled while a long query still needs it. One design pays at read and cleanup time, the other at write time.'}],
-  body:(st)=>`
-    <div class="stage-row" style="flex:0 0 auto;height:34%">${sceneOracle(st)}</div>
-    ${rowsTable(['','PostgreSQL','Oracle'],[
+{ id:'oracle', kick:'same concept, two designs', eyebrow:'Deleting, undoing, cleaning', title:'Is there another way to keep old versions?',
+  tag:'case', problem:'PostgreSQL keeps old versions inside the table and pays for it with bloat and VACUUM. Could the old versions live somewhere else?',
+  steps:[
+  P('PostgreSQL keeps old versions in the table itself. Ask: could they live somewhere else?'),
+  SEE('The cost of keeping them in the table: bloat, a permanent VACUUM burden, and, in the worst case, XID wraparound.'),
+  SOL('Solution, step one: Oracle\'s design. It overwrites the row in place and copies the old data into a separate undo segment; a reader rebuilds a past version by applying undo backwards.'),
+  SOL('Step two: compare where old versions live, what UPDATE does, and what ROLLBACK costs. PostgreSQL rollback is nearly free; Oracle must apply undo records.'),
+  SOL('Step three: cleanup and failure modes. PostgreSQL carries VACUUM and bloat; Oracle recycles undo automatically but risks ORA-01555 snapshot too old when undo is reused while a long query still needs it. One design pays at read and cleanup time, the other at write time.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.oracle) + `<div class="stage-row">${sceneOracle(0)}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneOracle(0)}</div><div class="cards" style="grid-template-columns:repeat(3,1fr)">
+        ${card('Bloat','The table grows','Old versions take space inside the heap.','warn','db','pop d1')}
+        ${card('VACUUM','Never finished','Cleanup has to run all the time.','warn','trash','pop d2')}
+        ${card('Worst case','XID wraparound','XIDs must be frozen before the counter wraps.','warn','clock','pop d3')}</div>`;
+    const rows = [
       ['Old versions live','in the table itself (heap)','in undo segments'],
       ['UPDATE','appends a new tuple','overwrites in place, old copy to undo'],
       ['ROLLBACK','nearly free (new version ignored)','must apply undo records (costly)'],
       ['Cleanup burden','VACUUM and bloat in the table','undo space recycled automatically'],
-      ['Classic failure','table bloat, XID wraparound','ORA-01555 snapshot too old']], st, '1fr 1.3fr 1.3fr', st)}
-    ${st>=4?`<p class="lede pop">Same concept, two designs: <b>one pays at read and cleanup time, the other at write time</b>.</p>`:''}` },
+      ['Classic failure','table bloat, XID wraparound','ORA-01555 snapshot too old']];
+    const upto = st===2 ? -1 : st===3 ? 2 : 4;
+    return `<div class="stage-row" style="flex:0 0 auto;height:${st===2?'60%':'32%'}">${sceneOracle(1)}</div>
+      ${st>=3?rowsTable(['','PostgreSQL','Oracle'], rows.slice(0, upto+1), 9, '1fr 1.3fr 1.3fr'):''}
+      ${st===4?`<p class="lede pop">Same concept, two designs: <b>one pays at read and cleanup time, the other at write time</b>.</p>`:''}`; } },
 
 /* ------------------------------ chapter 5 ------------------------------ */
-{ id:'pipeline', kick:'you cannot tune what you cannot see', eyebrow:'Part 2 overview', title:'The four-stage pipeline',
-  tag:'part 2', steps:[
-  {note:'Every query passes through four stages, and every EXPLAIN plan and index decision maps to one of them. Here is the whole pipeline at a glance.'},
+{ id:'pipeline', kick:'you cannot tune what you cannot see', eyebrow:'Part 2 roadmap', title:'The four-stage pipeline',
+  tag:'roadmap', steps:[
+  {note:'Before the cases, the map. Every query passes through four stages, and every EXPLAIN plan and index decision maps to one of them.'},
   {note:'Stage one, the Parser: is this valid SQL grammar? It produces a parse tree.'},
   {note:'Stage two, the Analyzer and Rewriter: do these objects exist, are you allowed to use them, and should the query be rewritten? It produces a query tree.'},
-  {note:'Stage three, the Planner: of all the ways to get this answer, which is cheapest? It produces a plan tree.'},
-  {note:'Stage four, the Executor: run the chosen plan, row by row, and send rows to the client.'}],
+  {note:'Stage three, the Planner: of all the ways to get this answer, which is cheapest? It produces a plan tree. That is chapter 6.'},
+  {note:'Stage four, the Executor: run the chosen plan, row by row. That is chapter 7.'}],
   body:(st)=>`<div class="stage-row">${scenePipe(st, false)}</div>
     <p class="lede">${['From the raw SQL string to rows on the client: <b>four stages</b>, and each one can go wrong in its own way.',
       '<b>Parser</b>: grammar only. Is this valid SQL?',
@@ -1502,7 +1765,7 @@ const DECK = [
 { id:'running', kick:'follow this one all the way', eyebrow:'The running query', title:'Pune high-net-worth accounts',
   tag:'setup', steps:[
   {note:'One query for the rest of the lecture. We will follow this string through all four stages until rows reach the client.'},
-  {note:'Note the two-part WHERE clause: branch equals Pune, AND balance above 100,000. It matters at the parser, where AND becomes a node, and again at the planner, where each half gets its own selectivity estimate.'}],
+  {note:'Note the two-part WHERE clause: branch equals Pune, AND balance above 100,000. It matters at the parser, where AND becomes a node, and again at the planner, where each half gets its own estimate.'}],
   body:(st)=>`
     ${sql(`${K('SELECT')} holder_name, balance
   ${K('FROM')}   accounts
@@ -1510,169 +1773,208 @@ const DECK = [
    ${K('AND')}  <span class="${st>=1?'hl':''}">balance &gt; ${S('100000')}</span>;`, 'big')}
     <p class="lede">${st>=1?'Two conditions joined by <b>AND</b>. They come back at the parser, and again at the planner.':'We will trace <b>this string</b> all the way to rows on the client.'}</p>` },
 
-{ id:'parser', kick:'grammar, not meaning', eyebrow:'Stage 1 of 4', title:'The Parser',
-  tag:'stage 1', steps:[
-  {note:'The engine receives a flat string. First, lexing: break it into tokens. Keywords, identifiers, literals and operators.'},
-  {note:'Then parsing: arrange the tokens according to the SQL grammar into a hierarchical parse tree. The crucial limitation: the parser knows grammar, not meaning.'},
-  {note:'So SELECT unicorn FROM narnia parses perfectly well; the parser has no idea whether tables exist. But SELECT * FORM accounts dies right here with a syntax error, because FORM breaks the grammar.'}],
-  body:(st)=>`
-    ${tokenChips(st)}
-    ${st>=1?`<p class="lede ${pp(1,st)}"><b>Parsing</b> arranges the tokens, according to the SQL grammar, into a parse tree. The parser knows <b>grammar, not meaning</b>.</p>`:''}
-    ${st>=2?`<div class="cards" style="grid-template-columns:1fr 1fr">
-      ${card('Parses fine','<code>SELECT unicorn FROM narnia;</code>','Whether a column or table exists is not a question of grammar.','good','','pop d1')}
-      ${card('Dies here','<code>SELECT * FORM accounts;</code>','<code>FORM</code> breaks the grammar: syntax error.','warn','','pop d2')}</div>`:''}` },
-
-{ id:'parsetree', kick:'what every later stage operates on', eyebrow:'Stage 1 output', title:'Parse tree of the running query',
-  tag:'stage 1', steps:[
-  {note:'The root: a SELECT statement.'},
-  {note:'The target list: the columns in the SELECT clause, holder_name and balance.'},
-  {note:'The from clause: the table reference, accounts. Still just a name at this point.'},
-  {note:'The where clause: a Boolean expression tree. AND becomes a node with two children. Operators are internal nodes; operands are leaves. Every later stage operates on this structure.'}],
-  body:(st)=>`<div class="stage-row">${sceneTree(st)}</div>
-    ${st>=3?`<p class="lede pop">Operators become <b>internal nodes</b>; operands become <b>leaves</b>. AND is a node with two children.</p>`:''}` },
-
-{ id:'analyzer', kick:'meaning, checked against the catalog', eyebrow:'Stage 2 of 4', title:'Analyzer / Rewriter: four jobs',
-  tag:'stage 2', steps:[
-  {note:'Job one, catalog lookup: does accounts exist? It is looked up in pg_class and the name is replaced with an OID. "relation acounts does not exist" is caught here, not by the parser.'},
-  {note:'Job two, attribute check: do the columns exist, and do the types make sense? Checked against pg_attribute. branch greater than 100000 on a TEXT column is a type error, raised here.'},
-  {note:'Job three, permission check: does the role have SELECT on the table? A role called intern with view-only rights gets "permission denied" here.'},
-  {note:'Job four, view substitution: the Rewriter proper splices a view\'s definition into the query tree. That is the next slide.'},
-  {note:'So the error order is: syntax errors from the parser first, then existence, then privileges, both raised in the analyzer.'}],
+{ id:'parser', kick:'stage 1: grammar, not meaning', eyebrow:'From SQL text to a query tree', title:'Is this string valid SQL?',
+  tag:'case', problem:'The engine receives a flat string of characters. How does it decide whether it is valid SQL, and what structure does it turn it into?',
+  steps:[
+  P('The engine receives our query as one flat string. How does it decide whether this is valid SQL, and what does it turn it into?'),
+  SEE('To the engine it is only characters. Two suspects: SELECT unicorn FROM narnia, and SELECT star FORM accounts. Which one is invalid? Nothing in a row of characters can tell you yet.'),
+  SOL('Solution, step one, lexing: break the string into tokens. Keywords, identifiers, operators and literals.'),
+  SOL('Step two, parsing: arrange the tokens by the SQL grammar into a tree. The root is a SELECT statement, and its target list holds the columns.'),
+  SOL('Step three: the from clause holds the table name, and the where clause becomes a Boolean tree. AND is a node with two children; operators are internal nodes, operands are leaves.'),
+  SOL('Step four, the verdict on our suspects. The parser knows grammar, not meaning. SELECT unicorn FROM narnia parses fine. SELECT star FORM accounts dies here with a syntax error.')],
   body:(st)=>{
-    const jobs = [
-      ['Job 1','Catalog lookup','Look up <code>accounts</code> in <code>pg_class</code> and replace names with OIDs. "relation acounts does not exist" is raised here, not by the parser.','tl','db'],
-      ['Job 2','Attribute check','Do the columns exist, and do the types fit? Checked against <code>pg_attribute</code>. <code>branch &gt; 100000</code> on TEXT is a type error.','pp','grid'],
-      ['Job 3','Permission check','Does the role have SELECT? The <code>intern</code> role, with view-only rights, gets "permission denied".','warn','lock'],
-      ['Job 4','View substitution','The Rewriter proper: a view\'s definition is spliced into your query tree.','good','layers']];
-    const j = jobs[Math.min(st,3)];
-    return `<div class="stage-row">${sceneCatalog(Math.min(st,4))}</div>
-      <div class="cards">${st<4 ? card(j[0], j[1], j[2], j[3], j[4], 'pop') :
-        card('Error order','Syntax, then existence, then privileges','Syntax errors come from the parser. Existence and privilege errors both come from the analyzer.','pp','route','pop')}</div>`; } },
+    if(st===0) return problemCard(SLIDE.parser) + sql(RAWQ.replace('>','&gt;'));
+    if(st===1) return `${charCells()}<div class="cards" style="grid-template-columns:1fr 1fr">
+        ${card('Suspect 1','<code>SELECT unicorn FROM narnia;</code>','Valid or invalid?','pp','','pop d1')}
+        ${card('Suspect 2','<code>SELECT * FORM accounts;</code>','Valid or invalid?','pp','','pop d2')}</div>`;
+    if(st===2) return tokenChips(0);
+    if(st<=4) return `<div class="stage-row">${sceneTree(st===3?1:3)}</div>`;
+    return `<div class="stage-row" style="flex:0 0 auto;height:45%">${sceneTree(3)}</div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        ${card('Parses fine','<code>SELECT unicorn FROM narnia;</code>','Whether a table exists is not a question of grammar.','good','','pop d1')}
+        ${card('Syntax error','<code>SELECT * FORM accounts;</code>','<code>FORM</code> breaks the grammar. It dies at the parser.','warn','','pop d2')}</div>`; } },
 
-{ id:'rewriter', kick:'stored queries, not data', eyebrow:'The Rewriter', title:'Views are spliced in',
-  tag:'stage 2', steps:[
-  {note:'Someone queries a view: SELECT holder_name FROM pune_hnw. To the query tree, pune_hnw is just a name.'},
-  {note:'At rewrite time the view\'s stored definition is fetched: SELECT star FROM accounts WHERE branch is Pune AND balance is above 100,000.'},
-  {note:'And it is spliced into the tree, which becomes exactly our running query against the base table. The punchline: views are stored query fragments, not stored data. After rewriting, the planner never knows a view was involved.'}],
-  body:(st)=>`
-    <div style="display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:1rem;align-items:center">
-      ${sql(`${K('CREATE VIEW')} pune_hnw ${K('AS')}
+{ id:'analyzer', kick:'stage 2: meaning, checked against the catalog', eyebrow:'From SQL text to a query tree', title:'Grammar is fine. Is the meaning?',
+  tag:'case', problem:'These queries all parse. But does the table exist, do the types fit, and is this user allowed to read it?',
+  steps:[
+  P('The parser has accepted the query. But grammar is not meaning. Does the table exist, do the types fit, may this user read it?'),
+  SEE('Three queries that all parse, and all must fail: a misspelled table, a text column compared with a number, and a role with no rights. The query tree still holds unchecked names.'),
+  SOL('Solution, job one, catalog lookup: look up accounts in pg_class and replace the name with an OID. "relation acounts does not exist" is raised here.'),
+  SOL('Job two, attribute check: do the columns exist, and do the types fit? Checked against pg_attribute. branch greater than 100000 on a TEXT column is a type error.'),
+  SOL('Job three, permission check: does the role have SELECT on the table? The intern role gets "permission denied".'),
+  SOL('Job four, view substitution: if a name is a view, the Rewriter splices in its definition. That is the next case.'),
+  SOL('So errors come in a fixed order: syntax from the parser, then existence, then privileges, both from the analyzer.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.analyzer) + `<div class="stage-row">${sceneCatalog(-1)}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneCatalog(-1)}</div><div class="cards" style="grid-template-columns:repeat(3,1fr)">
+        ${card('Parses, but','<code>SELECT * FROM acounts;</code>','Is there such a table?','warn','','pop d1')}
+        ${card('Parses, but','<code>... WHERE branch &gt; 100000</code>','branch is TEXT.','warn','','pop d2')}
+        ${card('Parses, but','<code>SET ROLE intern; SELECT ...</code>','intern may only use views.','warn','','pop d3')}</div>`;
+    const jobs = [
+      ['Job 1','Catalog lookup','Look up <code>accounts</code> in <code>pg_class</code>, replace names with OIDs. "relation acounts does not exist".','tl','db'],
+      ['Job 2','Attribute check','Columns and types checked against <code>pg_attribute</code>. <code>branch &gt; 100000</code> on TEXT: type error.','pp','grid'],
+      ['Job 3','Permission check','Does the role have SELECT? <code>intern</code> gets "permission denied".','warn','lock'],
+      ['Job 4','View substitution','If a name is a view, the Rewriter splices in its definition.','good','layers']];
+    const k = st-2;
+    return `<div class="stage-row">${sceneCatalog(Math.min(k,4))}</div>
+      <div class="cards">${k<4 ? card(jobs[k][0], jobs[k][1], jobs[k][2], jobs[k][3], jobs[k][4], 'pop') :
+        card('Error order','Syntax, then existence, then privileges','Syntax errors come from the parser. Existence and privilege errors come from the analyzer.','pp','route','pop')}</div>`; } },
+
+{ id:'rewriter', kick:'stored queries, not data', eyebrow:'From SQL text to a query tree', title:'A view has no rows. What gets scanned?',
+  tag:'case', problem:'pune_hnw is a view: it stores no data. So what does the planner scan when someone selects from it?',
+  steps:[
+  P('Someone runs SELECT holder_name FROM pune_hnw. But pune_hnw is a view. What will the planner scan?'),
+  SEE('To the query tree, pune_hnw is just a name, and there are no rows stored under it. Scanning "the view" makes no sense.'),
+  SOL('Solution, step one: at rewrite time the view\'s stored definition is fetched. SELECT star FROM accounts WHERE branch is Pune AND balance is above 100,000.'),
+  SOL('Step two: the definition is spliced into the tree, which becomes exactly our running query against the base table. Views are stored query fragments, not stored data, and the planner never knows a view was involved.')],
+  body:(st)=>{
+    const code = sql(`${K('CREATE VIEW')} pune_hnw ${K('AS')}
   ${K('SELECT')} * ${K('FROM')} accounts
    ${K('WHERE')} branch = ${S("'Pune'")}
      ${K('AND')} balance &gt; ${S('100000')};
 
-${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`)}
-      <div class="stage-row">${sceneView(st)}</div>
-    </div>
-    ${st>=2?`<p class="lede pop">After rewriting, the planner sees <b>only base tables</b>. It never knows a view was involved.</p>`:''}` },
+${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`);
+    if(st===0) return problemCard(SLIDE.rewriter) + code;
+    return `<div style="display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:1rem;align-items:center">
+      ${code}<div class="stage-row">${sceneView(st===1?-1:st-1)}</div></div>
+      ${st===3?`<p class="lede pop">After rewriting, the planner sees <b>only base tables</b>.</p>`:''}`; } },
 
 /* ------------------------------ chapter 6 ------------------------------ */
-{ id:'costphil', kick:'no fixed rules', eyebrow:'Stage 3 of 4', title:'Cost-based optimization',
-  tag:'stage 3', steps:[
-  {note:'The planner estimates a cost for each candidate plan and picks the cheapest. It follows no fixed rule such as "always use an index". It decides on the actual shape of the data.'},
-  {note:'A question for the room: if 99% of accounts were in Pune, would an index on branch help this query?'},
-  {note:'No. Nearly the whole table qualifies, and hopping from the index to the heap for every row is slower than just reading the table. The planner can know this only if it knows how the data is distributed. Enter statistics.'}],
-  body:(st)=>`
-    <p class="lede">The planner <b>estimates a cost</b> for each candidate and picks the cheapest. No fixed rules like "always use an index": it decides on the <b>actual shape of the data</b>.</p>
-    <div class="cards" style="grid-template-columns:1fr 1fr">
-      ${st>=1?card('Question','99% of accounts are in Pune.','Is an index on <code>branch</code> helpful for this query?','pp','search',pp(1,st)):''}
-      ${st>=2?card('Answer','No, read the table','Nearly every row qualifies. Hopping index to heap per row is slower than one sequential read. To know this, the planner needs <b>statistics</b>.','good','gauge',pp(2,st)):''}
-    </div>` },
+{ id:'costphil', kick:'no fixed rules', eyebrow:'Choosing the cheapest plan', title:'Index or no index?',
+  tag:'case', problem:'There is an index on branch. Should the planner always use it for branch = \'Pune\'?',
+  steps:[
+  P('There is an index on branch. The tempting rule: always use an index when one exists. Is that right?'),
+  SEE('Imagine 99% of accounts were in Pune. Using the index means one random heap hop for almost every row: about 990,000 hops at cost 4 each. A sequential scan reads the 12,000 pages once, in order.'),
+  SOL('Solution: no fixed rules. The planner estimates a cost for each candidate and picks the cheapest, and that depends on the actual shape of the data. To know the shape without reading the table, it needs statistics.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.costphil, 'The tempting rule: "always use an index when there is one."');
+    if(st===1) return `<div class="stage-row">${sceneDots()}</div>`;
+    return `<div class="stage-row" style="flex:0 0 auto;height:45%">${sceneDots()}</div>
+      <div class="cards" style="grid-template-columns:1fr 1fr">
+        ${card('The rule','Estimate, then pick the cheapest','No fixed rules like "always use an index".','good','gauge','pop d1')}
+        ${card('What it needs','Statistics','How the data is distributed, known without reading the whole table.','pp','sigma','pop d2')}</div>`; } },
 
-{ id:'stats', kick:'the ANALYZE inside VACUUM ANALYZE', eyebrow:'What ANALYZE collects', title:'Statistics',
-  tag:'stage 3', steps:[
-  {note:'ANALYZE samples about 30,000 rows and stores per-table and per-column statistics. reltuples and relpages: one million rows across 12,000 pages. These size every cost formula.'},
-  {note:'null_frac: 2% of branch values are NULL, which shrinks the expected number of matches.'},
-  {note:'n_distinct: branch has 40 distinct values, so by default equality has a selectivity of about one in forty.'},
-  {note:'most_common_vals: but Pune is 30% of all rows. For popular values the planner uses the exact frequency instead.'},
-  {note:'histogram_bounds for balance: from these buckets the planner estimates that balance above 100,000 is about 5% of rows.'},
-  {note:'correlation: acc_no is about 1.0, meaning physical order matches key order, which makes index scans cheaper.'},
-  {note:'Checkpoint: one million times 0.30 times 0.05 is about 15,000 rows. This is the ANALYZE inside VACUUM ANALYZE from the first half; now you know who consumes it.'}],
-  body:(st)=> st < 6 ? rowsTable(['Statistic','NeoBank value','The planner uses it to'],[
+{ id:'stats', kick:'the ANALYZE inside VACUUM ANALYZE', eyebrow:'Choosing the cheapest plan', title:'How many rows will match?',
+  tag:'case', problem:'To compare costs, the planner must know how many rows match before running anything. Where does that number come from?',
+  steps:[
+  P('Every cost depends on how many rows match. The planner has to know that before running the query. Where does the number come from?'),
+  SEE('Without statistics the planner is blind: it knows the table has a million rows, but not how many are in Pune or above 100,000.'),
+  SOL('Solution: ANALYZE samples about 30,000 rows and stores statistics. First, reltuples and relpages: one million rows in 12,000 pages. These size every cost formula.'),
+  SOL('null_frac: 2% of branch values are NULL, which shrinks the expected matches.'),
+  SOL('n_distinct: branch has 40 distinct values, so equality defaults to about one in forty.'),
+  SOL('most_common_vals: but Pune is 30% of all rows. For popular values the planner uses the exact frequency.'),
+  SOL('histogram_bounds for balance: from these buckets, balance above 100,000 is about 5% of rows.'),
+  SOL('correlation: acc_no is about 1.0, meaning physical order matches key order, which makes index scans cheaper.'),
+  SOL('Put it together: one million times 0.30 times 0.05 is about 15,000 rows. That is the estimate every plan will be costed against.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.stats);
+    if(st===1) return `<div class="stage-row">${sceneFunnel(0, true)}</div>`;
+    if(st<=7) return rowsTable(['Statistic','NeoBank value','The planner uses it to'],[
       ['<code>reltuples, relpages</code>','1,000,000 rows / 12,000 pages','size every cost formula'],
       ['<code>null_frac</code>','2% of branch is NULL','shrink expected matches'],
       ['<code>n_distinct</code>','branch has 40 distinct values','estimate = (about 1/40)'],
       ['<code>most_common_vals</code>',"'Pune' = 30% of rows",'use exact frequency for popular values'],
       ['<code>histogram_bounds</code>','balance: 0, 12k, 45k, ..., 98 lakh','estimate ranges (&gt; 100000 is about 5%)'],
-      ['<code>correlation</code>','acc_no is about 1.0','make index scans cheaper']], st, '1.1fr 1.2fr 1.3fr', st)
-    : `<div class="stage-row">${sceneFunnel(st)}</div>
-       <p class="lede pop">Estimate for our query: <b>1M x 0.30 x 0.05 = about 15,000 rows</b>. This is who consumes the ANALYZE inside VACUUM ANALYZE.</p>` },
+      ['<code>correlation</code>','acc_no is about 1.0','make index scans cheaper']], st-2, '1.1fr 1.2fr 1.3fr', st-2);
+    return `<div class="stage-row">${sceneFunnel(0)}</div>
+      <p class="lede pop">Estimate for our query: <b>1M x 0.30 x 0.05 = about 15,000 rows</b>.</p>`; } },
 
-{ id:'scans', kick:'the building blocks', eyebrow:'Candidate plans', title:'Scan methods, and when each wins',
-  tag:'stage 3', steps:[
-  {note:'Sequential scan: read every page from start to finish. It wins when a large fraction of rows qualifies, like our 30% in Pune, or when the table is small.'},
-  {note:'Index scan: walk the B-tree, then hop to the heap for each match. It wins for high selectivity, such as acc_no equals 101.'},
-  {note:'Index-only scan: answer from the index alone, with no heap visits, if the index holds every needed column and the visibility map says the pages are all-visible. That is a one-line callback to MVCC.'},
-  {note:'Bitmap scan, the middle ground: collect matching locations into a bitmap, sort them by page, and visit pages in order. It wins for medium selectivity, like our 15,000 rows, and for combining two indexes.'}],
+{ id:'scans', kick:'the building blocks', eyebrow:'Choosing the cheapest plan', title:'Which way to read the table?',
+  tag:'case', problem:'About 15,000 matching rows are scattered across 12,000 pages. What is the fastest way to fetch them?',
+  steps:[
+  P('We expect about 15,000 matches. What is the fastest way to fetch them?'),
+  SEE('The matches are scattered across the heap. Some pages hold several, most hold none. Every way of reading the table pays for that differently.'),
+  SOL('Option one, sequential scan: read every page from first to last. It wins when a large fraction qualifies, or the table is small.'),
+  SOL('Option two, index scan: walk the B-tree, then hop to the heap for each match. One random hop per row: great for acc_no = 101, costly for 15,000.'),
+  SOL('Option three, index-only scan: answer from the index alone, if it holds every needed column and the visibility map says the pages are all-visible. A callback to MVCC.'),
+  SOL('Option four, bitmap scan: collect matching locations into a bitmap, sort by page, and visit each page once, in order. The fit for medium selectivity like our 15,000 rows.')],
   body:(st)=>{
+    if(st===0) return problemCard(SLIDE.scans) + `<div class="stage-row">${sceneScatter()}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneScatter()}</div>`;
+    const k = st-2;
     const c = [
-      ['Sequential Scan','Read every page','Wins when a large fraction qualifies (our 30% in Pune) or the table is small.','tl','search'],
-      ['Index Scan','B-tree, then heap hops','Wins for high selectivity (<code>acc_no = 101</code>).','pp','route'],
-      ['Index-Only Scan','No heap visits','If the index has every needed column and the visibility map allows it: an MVCC callback.','good','layers'],
-      ['Bitmap Heap Scan','Sorted page visits','Wins for medium selectivity (about 15,000 rows) and for combining two indexes.','pp','grid']][st];
-    return `<div class="stage-row">${sceneScanKind(st)}</div>
-      <div class="cards">${card('Scan '+(st+1)+' of 4', c[0], '<b>'+c[1]+'.</b> '+c[2], c[3], c[4], 'pop')}</div>`; } },
+      ['Sequential Scan','Read every page.','Wins when a large fraction qualifies, or the table is small.','tl','search'],
+      ['Index Scan','B-tree, then one heap hop per match.','Wins for high selectivity (<code>acc_no = 101</code>).','pp','route'],
+      ['Index-Only Scan','No heap visits at all.','Only if the index has every needed column and the visibility map allows it.','good','layers'],
+      ['Bitmap Heap Scan','Each page visited once, in order.','Wins for medium selectivity: our 15,000 rows.','good','grid']][k];
+    return `<div class="stage-row">${sceneScanKind(k)}</div>
+      <div class="cards">${card('Option '+(k+1)+' of 4', c[0], '<b>'+c[1]+'</b> '+c[2], c[3], c[4], 'pop')}</div>`; } },
 
-{ id:'joins', kick:'join each Pune account with its transactions', eyebrow:'Candidate plans', title:'Join methods, and when each wins',
-  tag:'stage 3', steps:[
-  {note:'Introduce a second table: transactions, with txn_id, acc_no, amount and txn_date. We join each Pune account with its transactions. Nested loop: for each outer row, probe the inner side. It wins when the outer side is tiny and the inner side is indexed: ten accounts, ten indexed probes.'},
-  {note:'Hash join: build a hash table on the smaller input, then scan the bigger input and probe it. It wins for large, unsorted equality joins, and it needs memory.'},
-  {note:'Merge join: sort both sides, or use an order they already have, then zip them together. It wins when the inputs are already sorted, or when both are huge.'},
-  {note:'The planner also permutes join order. A joined with B, then C, can cost enormously more or less than A joined with the result of B and C.'}],
+{ id:'joins', kick:'match each Pune account with its transactions', eyebrow:'Choosing the cheapest plan', title:'Which way to join?',
+  tag:'case', problem:'Match each Pune account with its rows in transactions. Comparing every account with every transaction would take forever. What are the alternatives?',
+  steps:[
+  P('A second table: transactions, with txn_id, acc_no, amount and txn_date. We want each Pune account with its transactions. How?'),
+  SEE('The brute-force way compares every account with every transaction. 20 comparisons in this picture; 300,000 times 50 million at NeoBank scale.'),
+  SOL('Option one, nested loop: for each outer row, probe the inner side through an index. It wins when the outer side is tiny: ten accounts, ten cheap lookups.'),
+  SOL('Option two, hash join: build a hash table on the smaller input, then scan the bigger input once and probe it. It wins for large, unsorted equality joins, and needs memory.'),
+  SOL('Option three, merge join: sort both sides, or use an order they already have, then zip them together. It wins when inputs are already sorted, or both are huge.'),
+  SOL('And the planner also permutes join order: A with B first, or B with C first, can differ enormously in cost.')],
   body:(st)=>{
-    const k = Math.min(st,2);
+    if(st===0) return problemCard(SLIDE.joins) + sql(`transactions(txn_id, acc_no, amount, txn_date)`);
+    if(st===1) return `<div class="stage-row">${sceneAllPairs()}</div>`;
+    const k = Math.min(st-2, 2);
     const c = [
-      ['Nested Loop','For each outer row, probe the inner side.','Wins: a tiny outer side and an indexed inner side (10 accounts x indexed probe).','tl','route'],
+      ['Nested Loop','For each outer row, probe the inner side.','Wins: tiny outer side, indexed inner side.','tl','route'],
       ['Hash Join','Build a hash on the smaller input, scan the bigger, probing.','Wins: large, unsorted equality joins. Needs memory.','pp','grid'],
-      ['Merge Join','Sort both sides (or use their order), then zip together.','Wins: inputs already sorted, or both huge.','good','split']][k];
-    return `${sql(`transactions(txn_id, acc_no, amount, txn_date)`)}
-      <div class="stage-row">${sceneJoin(k)}</div>
-      <div class="cards">${card('Join '+(k+1)+' of 3', c[0], c[1]+' '+c[2], c[3], c[4], pp(k,st))}</div>
-      ${st>=3?`<p class="lede pop">The planner also permutes <b>join order</b>: (A JOIN B) JOIN C versus A JOIN (B JOIN C) can differ enormously.</p>`:''}`; } },
+      ['Merge Join','Sort both sides (or use their order), then zip.','Wins: inputs already sorted, or both huge.','good','split']][k];
+    return `<div class="stage-row">${sceneJoin(k)}</div>
+      <div class="cards">${card('Option '+(k+1)+' of 3', c[0], c[1]+' '+c[2], c[3], c[4], st-2<=2?'pop':'')}</div>
+      ${st===5?`<p class="lede pop">The planner also permutes <b>join order</b>: (A JOIN B) JOIN C versus A JOIN (B JOIN C).</p>`:''}`; } },
 
-{ id:'decision', kick:'lowest total cost wins', eyebrow:'The decision', title:'Choosing the winner',
-  tag:'stage 3', steps:[
-  {note:'Each candidate gets a cost in abstract units that blend I/O and CPU: pages times page cost, plus rows times CPU tuple cost, plus operator costs. It is reported as startup cost, two dots, total cost. The lowest total wins.'},
-  {note:'Sequential scan: 12,000 pages at 1.0 plus a million rows at 0.01. About 22,000.'},
-  {note:'Index scan on branch: about 15,000 random heap hops at 4.0 each. 60,000 or more. The "obvious" index is the most expensive option.'},
-  {note:'Bitmap scan: medium selectivity, pages visited in order. About 9,000. The winner.'},
-  {note:'Point at the EXPLAIN output: the cost and the 15,000-row estimate are exactly what we computed by hand. The obvious index lost because the planner knew Pune is 30% of the bank.'}],
-  body:(st)=>`
-    <p class="lede"><b>cost = pages x page_cost + rows x cpu_tuple_cost + operator costs</b>, reported as <code>startup..total</code>.</p>
-    <div class="stage-row">${sceneCost(st)}</div>
-    ${st>=4?`<div class="pop" style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:.8rem;align-items:center">
-      ${sql(`Bitmap Heap Scan on accounts
+{ id:'decision', kick:'lowest total cost wins', eyebrow:'Choosing the cheapest plan', title:'Pick the winner',
+  tag:'case', problem:'Three plans can answer the running query. Which one does PostgreSQL actually run?',
+  steps:[
+  P('We have three candidate plans for the running query. Which one runs?'),
+  SEE('Each plan gets a cost in abstract units: pages times page cost, plus rows times CPU cost, plus operator costs. Until we compute them, all three are question marks.'),
+  SOL('Sequential scan: 12,000 pages at 1.0 plus a million rows at 0.01. About 22,000.'),
+  SOL('Index scan on branch: about 15,000 random heap hops at 4.0. 60,000 or more. The "obvious" index is the most expensive.'),
+  SOL('Bitmap scan: pages visited in order. About 9,000. The winner.'),
+  SOL('EXPLAIN confirms it: the cost and the 15,000-row estimate are exactly what we computed by hand. The obvious index lost because the planner knew Pune is 30% of the bank.')],
+  body:(st)=>{
+    const f = `<p class="lede"><b>cost = pages x page_cost + rows x cpu_tuple_cost + operator costs</b>, reported as <code>startup..total</code>.</p>`;
+    if(st===0) return problemCard(SLIDE.decision) + f;
+    return `${f}<div class="stage-row">${sceneCost(st===1?0:st-1)}</div>
+      ${st===5?`<div class="pop" style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:.8rem;align-items:center">
+        ${sql(`Bitmap Heap Scan on accounts
   (cost=180.2..9014.5 rows=15000 width=36)
   Recheck Cond: (branch = 'Pune')
   -&gt;  Bitmap Index Scan ...`)}
-      <p class="lede">The "obvious" index lost, because the planner <b>knew Pune is 30% of the bank</b>.</p></div>`:''}` },
+        <p class="lede">The "obvious" index lost, because the planner <b>knew Pune is 30% of the bank</b>.</p></div>`:''}`; } },
 
 /* ------------------------------ chapter 7 ------------------------------ */
-{ id:'volcano', kick:'the iterator model', eyebrow:'Stage 4 of 4', title:'The Executor',
-  tag:'stage 4', steps:[
-  {note:'The plan is just a tree. Every node in it implements the same tiny interface: open, next and close.'},
-  {note:'It is pull-based. The client asks the root for a row, calls cascade down the tree, and rows bubble up one at a time, pipelined.'},
-  {note:'Consequence one, streaming: the first rows reach the client before the scan finishes. With LIMIT 10, only about ten rows are ever pulled.'},
-  {note:'Consequence two, low memory: most nodes hold one row at a time, so there are no full intermediate result sets.'},
-  {note:'Consequence three, pipeline-breakers: Sort and hash-build must consume their whole input before emitting anything. That is why ORDER BY delays the first row.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneVolcano(st)}</div>
-    <div class="cards" style="grid-template-columns:repeat(3,1fr)">
-      ${st>=2?card('Streaming','First rows arrive early','With <code>LIMIT 10</code>, only about 10 rows are ever pulled.','good','bolt',pp(2,st)):''}
-      ${st>=3?card('Low memory','One row at a time','Most nodes never hold a full intermediate result.','tl','layers',pp(3,st)):''}
-      ${st>=4?card('Pipeline-breakers','Sort and hash-build','They consume the whole input first: why ORDER BY delays the first row.','warn','clock',pp(4,st)):''}
-    </div>` },
+{ id:'volcano', kick:'the iterator model', eyebrow:'Running the plan', title:'How do rows flow through a plan?',
+  tag:'case', problem:'If every node computed its whole result before passing it on, the client would wait and memory would fill up. How does the executor avoid that?',
+  steps:[
+  P('The planner handed over a tree: Limit on Sort on a scan. How do rows actually move through it?'),
+  SEE('The naive way: each node computes its entire result, then hands it up. The client waits for everything, and every node holds up to a million rows in memory.'),
+  SOL('Solution, step one: every node implements the same tiny interface: open, next and close.'),
+  SOL('Step two: it is pull-based. The client asks the root for one row; next calls cascade down; rows bubble up one at a time.'),
+  SOL('Step three, the payoff: streaming, because the first rows arrive before the scan finishes, and low memory, because most nodes hold one row at a time.'),
+  SOL('Step four, the exception: Sort and hash-build are pipeline-breakers. They must consume their whole input first, which is why ORDER BY delays the first row.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.volcano) + `<div class="stage-row">${sceneVolcano(0)}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneMaterialize()}</div>`;
+    return `<div class="stage-row">${sceneVolcano(st>=3?1:0)}</div>
+      <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+        ${st>=4?card('Streaming','First rows arrive early','With <code>LIMIT 10</code>, only about 10 rows are pulled.','good','bolt',pp(4,st)):''}
+        ${st>=4?card('Low memory','One row at a time','Most nodes never hold a full intermediate result.','tl','layers',pp(4,st)):''}
+        ${st>=5?card('Pipeline-breakers','Sort and hash-build','They consume the whole input first: why ORDER BY delays row 1.','warn','clock',pp(5,st)):''}
+      </div>`; } },
 
-{ id:'exectrace', kick:'... ORDER BY balance DESC LIMIT 3', eyebrow:'Full circle', title:'Where MVCC lives',
-  tag:'stage 4', steps:[
-  {note:'Our query with ORDER BY balance DESC LIMIT 3 gives this plan: Limit on top of Sort on top of a sequential scan.'},
-  {note:'The client asks Limit for a row. Limit asks Sort.'},
-  {note:'Sort is a pipeline-breaker, so it calls the scan\'s next repeatedly. The scan reads each heap tuple and applies the filter AND, tying the whole lecture together, the MVCC visibility check via xmin and xmax on every tuple. Kiran\'s deleted row and Arjun\'s uncommitted row are invisible.'},
-  {note:'Sort sorts the four survivors and answers next three times: Nisha, Meera, Rohan. Limit then reports done, and close cascades down the tree.'},
-  {note:'Every next on a scan node runs the xmin/xmax rule from Part 1. The executor is where MVCC physically happens: the two halves of the lecture meet here.'}],
-  body:(st)=>`
-    <div class="stage-row">${sceneExec(Math.min(st,3))}</div>
-    ${st>=4?`<p class="lede pop">Every <code>next()</code> on a scan node runs the <b>xmin/xmax rule from Part 1</b>. The two halves meet here.</p>`:''}` },
+{ id:'exectrace', kick:'... ORDER BY balance DESC LIMIT 3', eyebrow:'Running the plan', title:'Which rows reach the client?',
+  tag:'case', problem:'Run the query with ORDER BY balance DESC LIMIT 3. The heap holds a deleted row and an uncommitted row. Which three rows reach the client, and where is MVCC checked?',
+  steps:[
+  P('Our query, now with ORDER BY balance DESC LIMIT 3. The plan: Limit on Sort on a sequential scan. Which three rows reach the client?'),
+  SEE('Here is what the scan will find in the heap: eight tuples, including Kiran\'s, deleted by a committed transaction, and Arjun\'s, inserted by one that has not committed. Some are not Pune; some are below 100,000.'),
+  SOL('Solution, step one: the client asks Limit for a row, and Limit asks Sort.'),
+  SOL('Step two: Sort is a pipeline-breaker, so it pulls every row from the scan. The scan applies the filter and, on every tuple, the xmin/xmax rule from Part 1. Kiran and Arjun are invisible.'),
+  SOL('Step three: Sort orders the four survivors and answers next three times: Nisha, Meera, Rohan. Limit reports done, and close cascades down.'),
+  SOL('The point: every next on a scan node runs the visibility rule. The executor is where MVCC physically happens, and the two halves of the lecture meet here.')],
+  body:(st)=>{
+    if(st===0) return problemCard(SLIDE.exectrace) + `<div class="stage-row">${sceneExec(0)}</div>`;
+    if(st===1) return `<div class="stage-row">${sceneExec(0, true)}</div>`;
+    return `<div class="stage-row">${sceneExec(Math.min(st-1,3))}</div>
+      ${st===5?`<p class="lede pop">Every <code>next()</code> on a scan node runs the <b>xmin/xmax rule from Part 1</b>. The two halves meet here.</p>`:''}`; } },
 
 { id:'wrap', kick:'sixty-second replay', eyebrow:'Wrap-up', title:'One query\'s full journey',
   tag:'recap', steps:[
@@ -1695,7 +1997,7 @@ ${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`)}
   {note:'The Analyzer / Rewriter.'},
   {note:'Question two: which single command both cleans up dead tuples and refreshes planner statistics?'},
   {note:'VACUUM ANALYZE.'},
-  {note:'For students who want more: inspect xmin, xmax and ctid themselves, predict a plan by hand, then check it with EXPLAIN. Next lecture: now that we can read a plan, we learn to change the planner\'s mind, with indexing and EXPLAIN ANALYZE.'}],
+  {note:'For students who want more: inspect xmin, xmax and ctid themselves, predict a plan by hand, then check it with EXPLAIN. Next lecture: indexing and EXPLAIN ANALYZE.'}],
   body:(st)=>`
     <div class="cards" style="grid-template-columns:1fr 1fr;gap:.8rem">
       ${card('Q1', 'Which stage substitutes a view?', st>=1?'<b class="ans">The Analyzer / Rewriter</b>':'Think, then answer.', 'pp','layers', pp(0,st))}
@@ -1712,6 +2014,18 @@ ${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`)}
     ${st>=1?`<div class="cards pop" style="grid-template-columns:1fr">
       ${card('Two minutes, please','Fill in the feedback form','Your feedback shapes the next lecture, on indexing and EXPLAIN ANALYZE.','pp','users')}</div>`:''}` }
 ];
+
+/* number the cases in running order, and put the phase strip on each one */
+const SLIDE = Object.fromEntries(DECK.map(d => [d.id, d]));
+let caseN = 0;
+CHAPTERS.forEach(ch => ch.of.forEach(id => {
+  const d = SLIDE[id];
+  if(d && d.problem){
+    d.caseNo = ++caseN;
+    const inner = d.body;
+    d.body = st => caseBar(d, st) + inner(st);
+  }
+}));
 
 </script>
 <script>
@@ -1734,6 +2048,9 @@ CHAPTERS.forEach(ch => {
 });
 DECK.length = 0;
 RUN.forEach(d => DECK.push(d));
+/* the title slide opens the deck, ahead of chapter 1's requirement card */
+const TI = DECK.findIndex(d => d.id === 'title');
+if(TI > 0) DECK.unshift(DECK.splice(TI, 1)[0]);
 
 /* ===================== presenter engine ===================== */
 const $ = s => document.querySelector(s);
