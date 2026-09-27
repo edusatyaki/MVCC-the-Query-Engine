@@ -741,11 +741,18 @@ function sceneTitle(st){
   g += `<text x="290" y="100" text-anchor="middle" class="t-mono" style="font-size:12px">SELECT</text>
         <text x="710" y="100" text-anchor="middle" class="t-mono" style="font-size:12px">UPDATE</text>`;
   if(st >= 1){
+    /* each half: its name, what the name stands for, and the question it answers */
+    const part = (x, fill, t, l1, l2, l3) => `
+      <rect x="${x}" y="245" width="400" height="128" rx="4" fill="${fill}" stroke="var(--ink)" stroke-width="2.5"/>
+      <text class="t-serif" x="${x+200}" y="280" text-anchor="middle" style="font-size:21px">${t}</text>
+      <text x="${x+200}" y="310" text-anchor="middle" style="font-size:14px;fill:var(--ink-2)">${l1}</text>
+      <text x="${x+200}" y="336" text-anchor="middle" style="font-size:14px;fill:var(--ink-2)">${l2}</text>
+      <text x="${x+200}" y="360" text-anchor="middle" style="font-size:14px;fill:var(--muted)">${l3}</text>`;
     g += `<g class="${an(1,st)}">
-      ${boxT(120, 250, 340, 70, 'Part 1: MVCC', 'many transactions, one row', {fill:'var(--pencil-soft)'})}
-      ${boxT(540, 250, 340, 70, 'Part 2: the query engine', 'one query, a million rows', {fill:'var(--amber-soft)'})}</g>`;
+      ${part(80, 'var(--pencil-soft)', 'Part 1: MVCC', 'Multi-Version Concurrency Control:', 'many transactions safely share one row', '(Asha reads while Ravi writes)')}
+      ${part(520, 'var(--amber-soft)', 'Part 2: the query engine', 'parser, analyzer, planner, executor:', 'how one SQL query becomes results, fast', '(one query, a million rows)')}</g>`;
   }
-  return SV('0 0 1000 330', g);
+  return SV(`0 0 1000 ${st>=1?385:230}`, g);
 }
 
 /* the accounts table, with the row we follow all lecture */
@@ -1474,7 +1481,7 @@ const DECK = [
 { id:'title', kick:'one table, a reader and a writer', eyebrow:'PostgreSQL internals', title:'MVCC & the Query Engine',
   tag:'intro', steps:[
   {note:'Welcome. Today we open the hood of PostgreSQL. One table sits in the middle of everything: NeoBank\'s accounts. Asha reads it, Ravi writes it, and both do so at the same moment.'},
-  {note:'Two halves. First, how many concurrent transactions coexist on one row: MVCC. Second, what the engine does with a single query that touches a million rows: the four-stage pipeline.'}],
+  {note:'Two halves. Part 1 is MVCC, Multi-Version Concurrency Control: many transactions touching the same single row at once, like Asha reading account 101 while Ravi changes it. PostgreSQL keeps old and new versions so nobody waits and nobody sees half-finished work. Part 2 is the query engine: one query against a million rows, followed through the parser, analyzer, planner and executor. The two meet at the end, when the executor applies the MVCC rule to every row it reads.'}],
   body:(st)=>`
     <p class="lede">Readers and writers touch the same data at the same time. <b>How does PostgreSQL keep them out of each other's way</b>, and what does it do with the SQL you send it?</p>
     <div class="stage-row">${sceneTitle(st)}</div>` },
