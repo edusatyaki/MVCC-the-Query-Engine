@@ -1,0 +1,1941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>MVCC &amp; the Query Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Patrick+Hand&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Type is a share of SCREEN HEIGHT so the deck keeps its physical size on any
+     projector resolution. --scale is the presenter's live zoom (+ / - / 0).   */
+  --scale:1;
+
+  /* Sketchnote palette: cream paper, ink, highlighter, pencil-blue */
+  --paper:#FBF3E4;
+  --paper-2:#F5EAD6;
+  --card:#FFFFFF;
+  --ink:#1C1A17;
+  --ink-2:#403B34;
+  --muted:#6B6259;
+  --line:#D8CCB4;
+
+  --amber:#FFD766;          /* highlighter */
+  --amber-2:#F7C948;
+  --amber-soft:#FDEFC2;
+  --pencil:#7FA3C9;         /* the blue-grey sketch fill */
+  --pencil-2:#3D5C7E;
+  --pencil-soft:#DCE8F4;
+  --flame:#E8553A;          /* warnings, hot shards - a FILL colour */
+  --flame-ink:#BF3419;      /* the same voice, dark enough to set as text */
+  --flame-soft:#FBE2DC;
+  --on-flame:#2A1109;     /* text that sits ON a flame fill, in either theme */
+  --surface-blue:#3D5C7E;   /* coloured bands that keep white text in BOTH themes */
+  --surface-green:#3A7A3D;
+  --leaf:#3A7A3D;           /* good, benefits */
+  --leaf-soft:#E2F0E2;
+
+  --bg:var(--paper);
+  --bg-2:var(--paper-2);
+  --panel:var(--card);
+  --panel-2:var(--paper-2);
+
+  /* names the rest of the stylesheet and the scene code already speak */
+  --squid:var(--ink);
+  --squid-2:var(--pencil-2);
+  --squid-deep:#12100E;
+  --orange:var(--amber);
+  --orange-deep:#6E4A05;
+  --orange-soft:var(--amber-soft);
+  --link:var(--pencil-2);
+  --link-soft:var(--pencil-soft);
+  --red:var(--flame);
+  --red-soft:var(--flame-soft);
+  --green:var(--leaf);
+  --green-soft:var(--leaf-soft);
+  --white:var(--card);
+  --line-2:#E7DEC9;
+  --accent:var(--pencil-2);
+  --accent-deep:var(--ink);
+  --accent-soft:var(--line);
+  --accent-tint:var(--amber-soft);
+  --violet:var(--pencil-2);
+  --violet-soft:var(--pencil-soft);
+  --teal:var(--pencil);
+  --clay:var(--flame);
+  --ok:var(--leaf);
+  --navy-900:var(--ink);
+  --navy-800:var(--ink);
+  --navy-700:var(--ink);
+  --blue:var(--pencil-2);
+  --blue-400:var(--ink);
+  --blue-300:var(--pencil);
+  --cyan:var(--amber);
+  --purple:var(--pencil-2);
+  --purple-300:var(--amber);
+  --gold:var(--amber);
+  --gold-soft:var(--amber-soft);
+  --navy:#1C1A17;
+
+  --shadow:3px 4px 0 rgba(28,26,23,.13);
+  --shadow-sm:2px 3px 0 rgba(28,26,23,.11);
+
+  /* hand-drawn box: uneven corner radii, the classic sketch trick */
+  --wobble:255px 15px 225px 15px/15px 225px 15px 255px;
+  --wobble-2:15px 225px 15px 255px/225px 15px 255px 15px;
+
+  --hand:'Patrick Hand','Comic Sans MS',cursive;
+  --marker:'Caveat','Patrick Hand',cursive;
+  --arial:var(--hand);
+  --serif:var(--marker);
+  --news:var(--hand);
+  --sans:var(--hand);
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+:root[data-theme="dark"]{
+  /* accents re-lit for a dark ground - the light-theme values are far too dark here */
+  --amber:#6B5416;
+  --amber-2:#7A5D14;
+  --pencil-2:#B8D4F0;
+  --flame-ink:#FF8A6E;
+  --leaf:#6FBF73;
+  --orange-deep:#F2D07A;
+  --paper:#241F1A;
+  --paper-2:#2C261F;
+  --card:#2B251E;
+  --ink:#F6EEDF;
+  --ink-2:#DACFBC;
+  --muted:#9E9382;
+  --line:#4A4136;
+  --line-2:#3C342B;
+  --amber-soft:#463A1C;
+  --pencil-soft:#26323E;
+  --flame-soft:#3E241E;
+  --leaf-soft:#22331F;
+  --white:var(--card);
+  --squid-deep:#0E0C0A;
+  --shadow:3px 4px 0 rgba(0,0,0,.45);
+  --shadow-sm:2px 3px 0 rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{height:100dvh}
+html{font-size:clamp(14px, calc(min(3.5vh, 2.08vw) * var(--scale)), 56px)}
+body{
+  margin:0;color:var(--ink);overflow:hidden;
+  background:var(--paper);
+  background-image:
+    radial-gradient(circle at 22% 18%, rgba(255,215,102,.16), transparent 42%),
+    radial-gradient(circle at 82% 78%, rgba(127,163,201,.13), transparent 46%);
+  font-family:var(--sans);overflow:hidden;
+}
+
+/* ================= shell: chapter rail + document =================
+   Flat and rule-based rather than floating cards: square corners, hairline
+   borders, no shadows. The rail carries identity and position so the stage
+   gets the full height of the screen.                                      */
+#app{height:100%;max-width:100%;display:grid;
+  grid-template-columns:clamp(8.2rem,12.5vw,12.5rem) minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr);overflow:hidden}
+
+.rail{background:transparent;color:var(--ink);display:flex;flex-direction:column;
+  padding:.9rem .85rem;gap:.7rem;border-right:3px dashed var(--line);
+  min-width:0;min-height:0;overflow:hidden}
+.rail-lecture{font-family:var(--hand);font-size:.5rem;font-weight:400;letter-spacing:1.4px;
+  text-transform:uppercase;color:var(--orange-deep);padding-bottom:.7rem;
+  border-bottom:2px dashed var(--line)}
+.rail-lecture b{display:block;margin-top:.15rem;font-family:var(--marker);font-weight:700;
+  font-size:1.05rem;letter-spacing:0;text-transform:none;color:var(--ink);line-height:1.05}
+
+/* the chapter list scrolls rather than clipping - at a large type scale, or on a
+   short screen, it can outgrow the margin. `safe center` keeps it centred while it
+   fits but falls back to start when it overflows, so the first item stays reachable. */
+.rail-nav{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;
+  justify-content:safe center;gap:.08rem;overflow-y:auto;overflow-x:hidden;
+  overscroll-behavior:contain;scrollbar-width:none}
+.rail-nav::-webkit-scrollbar{width:0;height:0}
+/* only when it actually scrolls: fade the cut edges so a half-shown chapter
+   reads as "there is more above/below" rather than as a clipping bug */
+.rail-nav.scrolls{-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 14px,
+  #000 calc(100% - 14px),transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 14px,
+  #000 calc(100% - 14px),transparent 100%)}
+.rn{display:grid;grid-template-columns:1.35rem 1fr;gap:.4rem;align-items:baseline;
+  padding:clamp(.16rem,.72vh,.3rem) .25rem;cursor:pointer;border-left:3px solid transparent;
+  color:var(--muted);transition:color .15s,border-color .15s,background .15s}
+.rn:hover{color:var(--ink);background:var(--amber-soft)}
+.rn-n{font-family:var(--mono);font-size:.46rem;font-weight:700;text-align:right;color:var(--orange-deep)}
+.rn-t{font-family:var(--hand);font-size:.62rem;line-height:1.15}
+.rn.done{color:var(--muted);opacity:.7}
+.rn.now{color:var(--ink);border-left-color:transparent;background:var(--amber);
+  border-radius:var(--wobble-2);box-shadow:var(--shadow-sm)}
+.rn.now .rn-n{color:var(--ink)}
+
+.rail-foot{flex:0 0 auto;display:flex;flex-direction:column;gap:.5rem;
+  padding-top:.7rem;border-top:2px dashed var(--line)}
+.present{display:inline-flex;align-items:center;justify-content:center;gap:.4em;cursor:pointer;
+  font-family:var(--hand);font-size:.62rem;letter-spacing:.5px;padding:.34rem .6rem;
+  border:2.5px solid var(--ink);border-radius:var(--wobble);background:var(--amber);
+  color:var(--ink);box-shadow:var(--shadow-sm);transition:transform .12s}
+.present:hover{transform:translate(-1px,-1px) rotate(-.7deg)}
+.present svg{width:1.05em;height:1.05em}
+.rail-meta{display:flex;justify-content:space-between;gap:.4rem;font-family:var(--mono);
+  font-size:.44rem;color:var(--muted)}
+.rail-keys{font-size:.48rem;line-height:1.8;color:var(--muted)}
+kbd{font-family:var(--mono);font-size:.9em;background:var(--amber-soft);
+  border:1.5px solid var(--line);border-radius:4px;padding:1px 4px;color:var(--ink-2)}
+
+.doc{min-width:0;min-height:0;overflow:hidden;display:flex;flex-direction:column;background:transparent}
+.doc-head{flex:0 0 auto;min-width:0;padding:.7rem 1.35rem .55rem;
+  border-bottom:3px solid var(--ink)}
+.eyebrow{font-family:var(--hand);font-size:.6rem;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--orange-deep);margin-bottom:.1rem}
+.slide-title{display:inline-block;margin:0;font-family:var(--marker);font-weight:700;
+  font-size:2rem;line-height:1;letter-spacing:0;color:var(--ink);
+  background:linear-gradient(var(--amber),var(--amber));
+  background-size:100% .62em;background-position:0 .62em;background-repeat:no-repeat;
+  padding:0 .18em .06em;transform:rotate(-.5deg)}
+:root[data-theme="dark"] .slide-title{color:var(--ink)}
+.kick{margin-top:.12rem;font-family:var(--hand);font-size:.72rem;color:var(--muted)}
+
+main{flex:1 1 auto;min-height:0;min-width:0;padding:.65rem 1.35rem .7rem;display:flex;overflow:hidden}
+.slide{flex:1 1 auto;min-height:0;min-width:0;display:flex;align-items:center;
+  justify-content:center;overflow:hidden}
+.fit{width:100%;height:100%;min-height:0;padding:5px 0;display:flex;flex-direction:column;gap:.38rem;
+  justify-content:center;transform-origin:center top}
+/* measurement pose: centred boxes hide half their overflow from scrollHeight,
+   so everything is top-aligned for the instant we measure */
+.fit.topfit{justify-content:flex-start}
+.fit.measuring,.fit.measuring *{
+  align-items:flex-start!important;align-content:flex-start!important;
+  justify-content:flex-start!important}
+
+/* a credit line, not content: capped so it stays subordinate on a big projector
+   and never steals height from the chapter list */
+.rail-by{flex:0 0 auto;font-family:var(--hand);font-size:clamp(8px,.44rem,12px);
+  letter-spacing:1.2px;text-transform:uppercase;color:var(--muted);
+  padding-top:clamp(4px,.42rem,9px);border-top:1px dashed var(--line);
+  white-space:nowrap;overflow:hidden}
+.rail-by b{font-family:var(--marker);font-weight:700;font-size:clamp(11px,.6rem,15px);
+  letter-spacing:.2px;text-transform:none;color:var(--ink)}
+
+.progress{flex:0 0 auto;height:5px;background:var(--line)}
+.progress span{display:block;height:100%;background:var(--amber-2);transition:width .2s ease}
+
+@media (max-height:820px){ .rail-keys{display:none} }
+@media (max-height:720px){
+  .rail-lecture{padding-bottom:.5rem}
+  .rail-lecture b{font-size:.56rem}
+  .rn{padding:.22rem .25rem}
+  .rail-foot{gap:.35rem;padding-top:.5rem}
+}
+@media (max-height:600px){
+  .rail-lecture b{display:none}
+  .rail-by{font-size:0;padding-top:.32rem}
+  .rail-by b{font-size:.56rem}
+  .rn-t{font-size:.46rem}
+}
+
+@media (max-width:860px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  .rail{flex-direction:row;align-items:center;gap:.7rem;border-right:none;
+    border-bottom:3px solid var(--orange);padding:.5rem .8rem}
+  .rail-nav,.rail-keys{display:none}
+  .rail-lecture{padding-bottom:0;border-bottom:none}
+  .rail-foot{flex-direction:row;align-items:center;border-top:none;padding-top:0;margin-left:auto}
+  .rail-by{font-size:0;padding-top:0;border-top:none}
+  .rail-by b{font-size:.56rem}
+  .doc-head{padding:.8rem 1rem .5rem}
+  main{padding:.7rem 1rem}
+}
+
+/* ================= shared blocks ================= */
+.lede{margin:0;font-family:var(--hand);font-size:.94rem;line-height:1.38;color:var(--ink-2);max-width:54rem}
+.lede b{color:var(--ink);font-weight:600}
+.kicker{font-family:var(--news);font-style:italic;font-size:.82rem;color:var(--violet);margin:0}
+.stage-row{flex:1 1 auto;min-height:0;display:flex;align-items:center;justify-content:center}
+svg.scene{width:100%;height:100%;max-height:100%;overflow:visible;fill:var(--ink)}
+svg.scene rect:not(.nofx),svg.scene circle:not(.packet){filter:url(#rough)}
+.cards{display:grid;gap:.5rem}
+/* equal-height cards within a row, without forcing the grid to fill */
+.fit > .cards > .pop{display:flex}
+.fit > .cards > .pop > .card{flex:1 1 auto}
+.card{position:relative;background:var(--card);border:2.5px solid var(--ink);
+  border-radius:var(--wobble);padding:.62rem .9rem;overflow:visible;box-shadow:var(--shadow-sm)}
+.card:nth-of-type(even){border-radius:var(--wobble-2);transform:rotate(.22deg)}
+.card:nth-of-type(odd){transform:rotate(-.18deg)}
+.card::after{content:'';position:absolute;left:.7rem;right:.7rem;top:-2px;height:7px;
+  background:var(--pencil);border-radius:99px;opacity:.85}
+.card.warn::after{background:var(--flame)} .card.good::after{background:var(--leaf)}
+.card.pp::after{background:var(--amber-2)} .card.tl::after{background:var(--pencil-2)}
+.card h4{margin:.1rem 0 .2rem;font-family:var(--hand);font-size:.62rem;letter-spacing:1.3px;
+  text-transform:uppercase;color:var(--orange-deep)}
+.card.warn h4{color:var(--flame-ink)} .card.good h4{color:var(--leaf)}
+.card.pp h4{color:var(--orange-deep)} .card.tl h4{color:var(--pencil-2)}
+.card h3{margin:0 0 .18rem;font-family:var(--marker);font-weight:700;font-size:1.12rem;
+  line-height:1.02;letter-spacing:0;color:var(--ink)}
+.card p{margin:0;font-family:var(--hand);font-size:.76rem;line-height:1.34;color:var(--ink-2)}
+.card:has(.ico) h3,.card:has(.ico) h4{padding-right:2.6rem}
+.card .ico{position:absolute;right:.6rem;top:.55rem;width:1.9rem;height:1.9rem;
+  border-radius:var(--wobble-2);display:grid;place-items:center;background:var(--amber-soft);
+  border:2px solid var(--ink)}
+.card .ico svg{width:1rem;height:1rem;color:var(--ink)}
+.card.warn .ico svg{color:var(--flame)} .card.good .ico svg{color:var(--leaf)}
+.card.pp .ico svg{color:var(--orange-deep)} .card.tl .ico svg{color:var(--pencil-2)}
+code,.mono{font-family:var(--mono);font-size:.84em;background:var(--amber-soft);
+  padding:1px 5px;border-radius:5px;color:var(--ink);border:1.5px solid var(--line)}
+:root[data-theme="dark"] code,:root[data-theme="dark"] .mono{color:var(--orange-deep)}
+
+.pop{opacity:0;transform:translateY(12px);animation:pop .42s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes pop{to{opacity:1;transform:none}}
+.d1{animation-delay:.06s}.d2{animation-delay:.14s}.d3{animation-delay:.22s}
+.d4{animation-delay:.3s}.d5{animation-delay:.38s}.d6{animation-delay:.46s}
+
+/* ================= motion primitives ================= */
+@keyframes drawIn{to{stroke-dashoffset:0}}
+@keyframes fadeIn{to{opacity:1}}
+@keyframes riseIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes popIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+@keyframes glowPulse{0%,100%{filter:drop-shadow(0 0 0 rgba(27,127,212,0))}
+                     50%{filter:drop-shadow(0 0 10px rgba(27,127,212,.65))}}
+@keyframes hotPulse{0%,100%{filter:drop-shadow(0 0 2px rgba(232,85,45,.35))}
+                    50%{filter:drop-shadow(0 0 16px rgba(232,85,45,.85))}}
+@keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes spinSlow{to{transform:rotate(360deg)}}
+@keyframes dashFlow{to{stroke-dashoffset:-36}}
+
+.sv-draw{stroke-dasharray:var(--len,600);stroke-dashoffset:var(--len,600);
+  animation:drawIn .7s ease forwards}
+.sv-fade{opacity:0;animation:fadeIn .45s ease forwards}
+.sv-rise{opacity:0;animation:riseIn .5s cubic-bezier(.22,1,.36,1) forwards}
+.sv-pop{opacity:0;transform-box:fill-box;transform-origin:center;
+  animation:popIn .45s cubic-bezier(.34,1.56,.64,1) forwards}
+.sv-glow{animation:glowPulse 2.1s ease-in-out infinite}
+.sv-hot{animation:hotPulse 1.3s ease-in-out infinite}
+.sv-float{animation:floatY 2.6s ease-in-out infinite}
+.wire{stroke:var(--ink);stroke-width:2.4;fill:none;stroke-linecap:round;filter:url(#rough2)}
+.wire.live{stroke:var(--pencil-2);stroke-width:2.6;stroke-dasharray:9 9;animation:dashFlow .9s linear infinite}
+/* `animation` is a shorthand, so a flowing wire that also fades in needs BOTH
+   animations declared together - otherwise the flow replaces the fade and the
+   line is stuck at opacity 0. */
+/* packets riding the wires */
+.packet{filter:drop-shadow(0 0 4px currentColor);opacity:.95}
+@keyframes growUp{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.sv-grow{transform-box:fill-box;transform-origin:bottom;animation:growUp .75s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes sweepX{0%{transform:translateX(0)}100%{transform:translateX(var(--sweep,840px))}}
+.sv-sweep{animation:sweepX 2.4s linear infinite}
+@keyframes blip{0%,100%{opacity:.25}50%{opacity:1}}
+.sv-blip{animation:blip 1.4s ease-in-out infinite}
+@keyframes railPulse{0%,100%{opacity:1}50%{opacity:.55}}
+.rn.now .rn-n{animation:railPulse 2.4s ease-in-out infinite}
+.wire.live.sv-fade{animation:dashFlow .9s linear infinite, fadeIn .45s ease forwards}
+.wire.sv-fade{animation:fadeIn .45s ease forwards}
+.wire.hotwire{stroke:var(--orange)}
+text{font-family:var(--hand)}
+.t-lbl{font-size:17px;fill:var(--ink)}
+.t-serif{font-family:var(--marker);font-weight:700;fill:var(--ink)}
+.t-sub{font-size:16px;fill:var(--muted)}
+.t-mono{font-family:'JetBrains Mono',monospace;font-size:14px;fill:var(--ink-2)}
+.t-big{font-family:var(--marker);font-size:30px;font-weight:700;fill:var(--ink)}
+.box{fill:var(--card);stroke:var(--ink);stroke-width:2.6;filter:url(#rough)}
+.box-navy{fill:var(--card);stroke:var(--ink);stroke-width:2.6;filter:url(#rough)}
+.box-blue{fill:var(--card);stroke:var(--ink);stroke-width:2.6;filter:url(#rough)}
+.box-purple{fill:var(--amber);stroke:var(--ink);stroke-width:2.2;filter:url(#rough)}
+.box-orange{fill:var(--flame);stroke:var(--ink);stroke-width:2.2;filter:url(#rough)}
+.on-navy{fill:var(--ink)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;
+    transition-duration:.01ms!important}
+  .sv-draw{stroke-dashoffset:0}
+  .sv-fade,.sv-rise,.sv-pop,.pop{opacity:1;transform:none}
+}
+
+/* ================= side-by-side explainer ================= */
+.split{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);
+  gap:.9rem;align-items:start}
+.split-l,.split-r{min-width:0;min-height:0}
+.split-l{display:flex;align-items:center;height:100%}
+.lp{background:var(--card);border:2.5px solid var(--ink);border-radius:var(--wobble);
+  padding:.85em 1em;box-shadow:var(--shadow-sm);transform:rotate(.22deg);
+  font-size:clamp(10px,min(1.62vh,0.98vw),27px)}
+.lp-head{display:flex;align-items:center;flex-wrap:wrap;gap:.45em;margin-bottom:.5em;min-width:0}
+.lp-ico{flex:0 0 auto;width:2.3em;height:2.3em;border-radius:var(--wobble-2);display:grid;
+  place-items:center;background:var(--amber-soft);border:2px solid var(--ink)}
+.lp-ico svg{width:1.25em;height:1.25em;color:var(--ink)}
+.lp-n{font-family:var(--hand);font-size:.86em;letter-spacing:1.3px;text-transform:uppercase;color:var(--orange-deep)}
+.lp-t{font-family:var(--marker);font-weight:700;font-size:1.72em;line-height:.98;color:var(--ink)}
+.lp-when{margin-left:auto;flex:0 0 auto;white-space:nowrap;font-size:.72em;letter-spacing:1.2px;
+  text-transform:uppercase;color:var(--ink);background:var(--amber);padding:.18em .55em;
+  border:2px solid var(--ink);border-radius:var(--wobble-2)}
+.lp-owns{margin:0 0 .5em;font-family:var(--hand);font-size:1.08em;line-height:1.26;color:var(--ink-2)}
+.lp-row{display:grid;grid-template-columns:5.6em minmax(0,1fr);gap:.5em;padding:.3em 0;
+  border-top:2px dashed var(--line)}
+.lp-k{font-family:var(--hand);font-size:.86em;letter-spacing:.9px;text-transform:uppercase;
+  color:var(--muted);padding-top:.12em}
+.lp-row.warn .lp-k{color:var(--flame-ink)} .lp-row.good .lp-k{color:var(--green)}
+.lp-v{font-family:var(--hand);font-size:1.04em;line-height:1.26;color:var(--ink-2)}
+@media (max-width:980px){.split{grid-template-columns:1fr;gap:.6rem}}
+
+/* ================= taped-in logo ================= */
+.taped{position:relative;display:inline-block;background:#fff;padding:.55rem .85rem;
+  border:1px solid var(--line);box-shadow:var(--shadow);transform:rotate(-1.6deg)}
+.taped.r{transform:rotate(1.3deg)}
+.taped::before,.taped::after{content:'';position:absolute;width:3rem;height:1rem;
+  background:rgba(255,215,102,.6);border:1px solid rgba(28,26,23,.14);
+  box-shadow:0 1px 2px rgba(28,26,23,.10)}
+.taped::before{top:-.42rem;left:-.85rem;transform:rotate(-24deg)}
+.taped::after{bottom:-.42rem;right:-.85rem;transform:rotate(-24deg)}
+.taped img{display:block;height:var(--logo-h,2.4rem);width:auto}
+.taped figcaption{margin-top:.25rem;font-family:var(--hand);font-size:.5rem;
+  color:var(--muted);text-align:center;letter-spacing:.3px}
+:root[data-theme="dark"] .taped{background:#F7F2E8;color:#1C1A17}
+:root[data-theme="dark"] .taped figcaption{color:#6B6259}
+
+/* ================= chapter opener ================= */
+.chapter{flex:1 1 auto;display:flex;align-items:center;gap:2.4rem;padding:0 .6rem}
+.ch-rail{flex:0 0 auto;display:flex;flex-direction:column;align-items:flex-start;gap:.25rem;
+  padding-right:2.2rem;border-right:4px dashed var(--amber-2)}
+.ch-num{font-family:var(--marker);font-size:7rem;font-weight:700;line-height:.76;
+  color:var(--ink);letter-spacing:0}
+:root[data-theme="dark"] .ch-num{color:var(--ink)}
+.ch-of{font-family:var(--hand);font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted)}
+.ch-body{flex:1 1 auto;min-width:0;max-width:46rem}
+.ch-when{font-family:var(--hand);font-size:.66rem;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--orange-deep);margin-bottom:.3rem}
+.ch-title{display:inline-block;margin:0 0 .65rem;font-family:var(--marker);font-weight:700;
+  font-size:2.6rem;line-height:.98;letter-spacing:0;color:var(--ink);transform:rotate(-.8deg);
+  background:linear-gradient(var(--amber),var(--amber));background-size:100% .5em;
+  background-position:0 .66em;background-repeat:no-repeat;padding:0 .14em}
+:root[data-theme="dark"] .ch-title{color:var(--ink)}
+.ch-problem{margin:0 0 .45rem;font-family:var(--marker);font-weight:700;font-size:1.5rem;
+  line-height:1.06;color:var(--ink)}
+.ch-detail{margin:0 0 .5rem;font-family:var(--hand);font-size:.92rem;line-height:1.34;color:var(--ink-2)}
+.ch-next{margin:0;font-family:var(--hand);font-size:.86rem;line-height:1.3;color:var(--ink);
+  border-left:4px dashed var(--amber-2);padding-left:.7rem}
+@media (max-width:900px){
+  .chapter{flex-direction:column;align-items:flex-start;gap:1rem}
+  .ch-rail{flex-direction:row;align-items:baseline;border-right:none;
+    border-bottom:4px solid var(--orange);padding:0 0 .4rem;gap:.7rem}
+  .ch-num{font-size:3rem}}
+
+/* ================= chapter chip in the masthead ================= */
+
+
+/* ================= notes / overview / zoom ================= */
+#notes::-webkit-scrollbar,#ov::-webkit-scrollbar{width:0;height:0}
+#notes,#ov{scrollbar-width:none}
+#notes{position:fixed;left:0;right:0;bottom:0;z-index:40;transform:translateY(101%);
+  transition:transform .28s ease;background:var(--navy);color:#eaf3fa;
+  border-top:3px solid var(--gold);padding:14px 24px 16px;max-height:46vh;overflow-y:auto}
+#notes.open{transform:none}
+#notes h6{margin:0 0 6px;font-size:.5rem;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold)}
+#notes .say{font-family:var(--news);font-size:.82rem;line-height:1.55;max-width:66rem}
+#notes .say b{color:var(--gold);font-weight:700}
+#notes .nxt{margin-top:8px;font-size:.5rem;color:#8fabc2;font-family:var(--mono)}
+
+#ov{position:fixed;inset:0;z-index:50;background:var(--bg);padding:28px;display:none;overflow-y:auto}
+#ov.open{display:block}
+#ov h3{margin:0 0 16px;font-family:var(--serif);font-size:.86rem;font-weight:700;color:var(--navy);letter-spacing:0;text-transform:none}
+.ovgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:10px}
+.ovc{padding:11px 13px;border-radius:0;border:1px solid var(--line);border-top:3px solid var(--line);
+  cursor:pointer;background:var(--panel);transition:.15s}
+.ovc:hover{border-top-color:var(--orange)}
+.ovc-ch{background:var(--squid);border-color:var(--squid);border-top-color:var(--orange)}
+.ovc-ch .t{color:#fff}.ovc-ch .i{color:var(--orange)}
+.ovc .i{font-family:var(--mono);font-size:.45rem;color:var(--blue);font-weight:700}
+.ovc .t{font-family:var(--serif);font-size:.7rem;font-weight:700;margin-top:4px;line-height:1.2}
+
+#zoom{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);z-index:60;
+  padding:.9rem 1.5rem;border-radius:0;border:2px solid var(--orange);background:var(--panel);
+  color:var(--squid);font-family:var(--mono);font-size:1.5rem;font-weight:700;opacity:0;
+  pointer-events:none;transition:opacity .18s,transform .18s;box-shadow:var(--shadow)}
+#zoom.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#zoom small{display:block;font-size:.42em;color:var(--muted);font-weight:400;margin-top:.3rem;text-align:center}
+
+:root:fullscreen main{padding:22px 34px}
+:root:fullscreen header{padding-top:13px;padding-bottom:13px}
+
+@media (max-width:900px){ header,main,footer{padding-left:14px;padding-right:14px} }
+
+/* ================= additions for this deck ================= */
+/* straight connectors have a zero-height box, which the rough filter would erase */
+.wire{filter:none}
+.cards > div{display:flex} .cards > div > .card{flex:1 1 auto}
+.sql{font-family:var(--mono);font-size:.6rem;line-height:1.55;background:var(--card);color:var(--ink);
+  border:2.5px solid var(--ink);border-radius:var(--wobble-2);padding:.5rem .85rem;box-shadow:var(--shadow-sm);
+  white-space:pre;overflow:hidden;transform:rotate(-.15deg)}
+.sql.big{font-size:.9rem;align-self:center}
+.sql .k{color:var(--pencil-2);font-weight:700} .sql .s{color:var(--leaf);font-weight:700} .sql .c{color:var(--muted)}
+.sql .hl{background:var(--amber);border-radius:4px;padding:0 .15em}
+.tbl{display:flex;flex-direction:column;gap:.3rem}
+.trh{display:grid;gap:.5rem;padding:.36rem .7rem;background:var(--amber);border:2.5px solid var(--ink);
+  border-radius:var(--wobble-2);color:var(--ink);font-family:var(--hand);font-size:.62rem}
+.tr{display:grid;gap:.5rem;padding:.4rem .7rem;border-radius:10px;background:var(--panel);
+  font-family:var(--hand);font-size:.6rem;color:var(--ink-2);align-items:center}
+.tr span:first-child{font-weight:700;color:var(--ink)}
+.tr.hi{background:var(--amber-soft);box-shadow:inset 0 0 0 2px var(--ink)}
+.toks{display:flex;flex-wrap:wrap;gap:.35rem;justify-content:center;padding:.4rem 0}
+.tok{font-family:var(--mono);font-size:.72rem;padding:.2rem .5rem;border:2px solid var(--ink);
+  border-radius:var(--wobble-2);background:var(--card);color:var(--ink);box-shadow:var(--shadow-sm)}
+.tk-k{background:var(--pencil-soft)} .tk-i{background:var(--card)} .tk-o{background:var(--amber)} .tk-l{background:var(--leaf-soft)}
+.tok-key{display:flex;gap:.4rem;justify-content:center}
+.tok-key .tok{font-size:.44rem;box-shadow:none}
+.quote{margin:0;font-family:var(--marker);font-weight:700;font-size:1.25rem;line-height:1.1;color:var(--ink);
+  text-align:center}
+.bigq{font-family:var(--marker);font-weight:700;font-size:9rem;line-height:1;color:var(--ink);
+  background:linear-gradient(var(--amber),var(--amber));background-size:100% .4em;background-position:0 .7em;
+  background-repeat:no-repeat;padding:0 .3em;transform:rotate(-3deg)}
+.card .ul{display:block;line-height:1.55}
+.card .ans{color:var(--leaf);font-size:1.15em}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <filter id="rough" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.028" numOctaves="3" seed="7" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+  <filter id="rough2" x="-8%" y="-8%" width="116%" height="116%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.042" numOctaves="2" seed="21" result="n"/>
+    <feDisplacementMap in="SourceGraphic" in2="n" scale="1.7" xChannelSelector="R" yChannelSelector="G"/>
+  </filter>
+</defs></svg>
+
+
+<div id="app">
+  <aside class="rail">
+    <div class="rail-lecture">PostgreSQL internals<b>MVCC &amp; the Query Engine</b></div>
+    <nav class="rail-nav" id="railNav"></nav>
+    <div class="rail-foot">
+      <button class="present" id="btnFull" title="Full screen (F)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/>
+        </svg><span id="btnFullTxt">Present</span></button>
+      <div class="rail-meta"><span id="stepCount">-</span><span class="clock" id="clock">00:00</span></div>
+      <div class="rail-keys"><kbd>Right</kbd><kbd>Left</kbd> step &nbsp;<kbd>S</kbd> notes
+        &nbsp;<kbd>O</kbd> map &nbsp;<kbd>T</kbd> theme &nbsp;<kbd>+</kbd><kbd>-</kbd> size</div>
+      <div class="rail-by">Educator | <b>Satyaki Das</b></div>
+    </div>
+  </aside>
+
+  <section class="doc">
+    <div class="doc-head">
+      <div class="eyebrow" id="sEyebrow">-</div>
+      <h1 class="slide-title" id="sTitle">-</h1>
+      <div class="kick" id="sKick"></div>
+    </div>
+    <main id="stage"></main>
+    <div class="progress"><span id="progFill"></span></div>
+  </section>
+</div>
+
+<div id="notes"><h6>Speaker notes</h6><div class="say" id="noteSay">-</div><div class="nxt" id="noteNxt"></div></div>
+<div id="zoom"></div>
+<div id="ov"><h3>Run of show</h3><div class="ovgrid" id="ovGrid"></div></div>
+<script>
+/* =====================================================================
+   Motion scenes - inline SVG infographics.
+   Every scene takes the current step and returns markup; entrance
+   animations are CSS classes, so a re-render replays only what changed.
+   ===================================================================== */
+/* ---- line-art icon set - stroked, inherits colour, reads at projector size ---- */
+const ICON = {
+  server:  'M3 4h18v6H3zM3 14h18v6H3zM7 7h.01M7 17h.01',
+  db:      'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+  lock:    'M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4',
+  grid:    'M3 3h18v18H3zM3 9h18M9 3v18',
+  search:  'M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16M21 21l-4.3-4.3',
+  users:   'M16 19v-1a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v1M9 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6M22 19v-1a4 4 0 0 0-3-3.9',
+  cart:    'M2 3h2l2.4 12.5a2 2 0 0 0 2 1.5h9.7a2 2 0 0 0 2-1.6L21 7H6M9.5 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2M18 21a1 1 0 1 0 0-2 1 1 0 0 0 0 2',
+  bolt:    'M13 2 3 14h8l-1 8 10-12h-8z',
+  trash:   'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
+  layers:  'M12 2 2 7l10 5 10-5zM2 12l10 5 10-5M2 17l10 5 10-5',
+  ban:     'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M5.6 5.6l12.8 12.8',
+  sigma:   'M18 5H6l6 7-6 7h12',
+  clock:   'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18M12 7v5l3 2',
+  build:   'M3 21h18M5 21V7l7-4 7 4v14M9 21v-5h6v5',
+  route:   'M6 3v12a3 3 0 0 0 3 3h9M15 15l3 3-3 3',
+  shield:  'M12 3l8 3v6c0 5-3.5 8.3-8 9.5C7.5 20.3 4 17 4 12V6z',
+  split:   'M6 3v6a3 3 0 0 0 3 3h9M6 21v-6a3 3 0 0 1 3-3M15 9l3 3-3 3',
+  gauge:   'M12 21a9 9 0 1 1 9-9M12 12l5-3'
+};
+const ico = (n, c='currentColor') =>
+  `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke-width="1.8"
+        stroke-linecap="round" stroke-linejoin="round"><path d="${ICON[n]||ICON.db}"/></svg>`;
+
+/* ---- motion helpers -------------------------------------------------
+   wire() draws a connector AND sends packets riding along it, so a query
+   is visibly travelling rather than implied by a dashed line.          */
+let flowSeq = 0;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function wire(d, o = {}){
+  const id  = 'fp' + (++flowSeq);
+  const col = o.color || 'var(--blue)';
+  const dur = o.dur || 1.8;
+  const n   = o.packets == null ? 1 : o.packets;
+  const cls = 'wire' + (o.live === false ? '' : ' live') + (o.cls ? ' ' + o.cls : '');
+  let g = `<path id="${id}" d="${d}" class="${cls}"${o.stroke ? ` stroke="${o.stroke}"` : ''}/>`;
+  if(!REDUCED) for(let i = 0; i < n; i++){
+    g += `<circle r="${o.r || 5}" fill="${col}" class="packet">
+      <animateMotion dur="${dur}s" repeatCount="indefinite"
+        begin="${((o.delay || 0) + i * dur / n).toFixed(2)}s" rotate="auto">
+        <mpath href="#${id}" xlink:href="#${id}"/></animateMotion></circle>`;
+  }
+  return g;
+}
+
+const SV = (vb, inner) => `<svg class="scene" viewBox="${vb}" preserveAspectRatio="xMidYMid meet">${inner}</svg>`;
+const D  = n => `style="animation-delay:${n}ms"`;
+/* =====================================================================
+   Deck - PostgreSQL Internals: MVCC & the Query Engine
+   One running story: NeoBank. Asha reads, Ravi writes.
+   ===================================================================== */
+const card = (k,t,p,cls='',ic='',pop='') =>
+  `<div class="${pop}"><div class="card ${cls}">${ic?`<span class="ico">${ico(ic)}</span>`:''}
+     <h4>${k}</h4><h3>${t}</h3><p>${p}</p></div></div>`;
+
+/* animate only what is new on this step, so earlier steps stay still */
+const an  = (k, st, cls='sv-rise') => st === k ? cls : '';
+const pp  = (k, st) => st === k ? 'pop' : '';
+
+/* SQL block with light highlighting: pass pre-marked HTML */
+const sql = (html, extra='') => `<div class="sql ${extra}">${html}</div>`;
+const K = s => `<span class="k">${s}</span>`;
+const S = s => `<span class="s">${s}</span>`;
+const C = s => `<span class="c">${s}</span>`;
+
+/* a table built one row per step, in the lecture's sketch style */
+function rowsTable(head, rows, st, tpl, hi = -1, from = 0){
+  return `<div class="tbl">
+    <div class="trh" style="grid-template-columns:${tpl}">${head.map(h=>`<span>${h}</span>`).join('')}</div>
+    ${rows.map((r,i)=> st >= i + from ? `<div class="tr ${pp(i+from,st)} ${i===hi?'hi':''}"
+       style="grid-template-columns:${tpl}">${r.map(c=>`<span>${c}</span>`).join('')}</div>` : '').join('')}
+  </div>`;
+}
+
+/* ---------------- drawing primitives ---------------- */
+function person(x, y, name, role, col, cls='', delay=0){
+  return `<g class="${cls}" ${D(delay)}>
+    <circle cx="${x}" cy="${y}" r="19" fill="var(--amber-soft)" stroke="var(--ink)" stroke-width="2.4"/>
+    <path d="M${x-28} ${y+62} q0 -38 28 -38 q28 0 28 38 z" fill="${col}" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-serif" x="${x}" y="${y+92}" text-anchor="middle" style="font-size:26px">${name}</text>
+    <text class="t-sub" x="${x}" y="${y+114}" text-anchor="middle">${role}</text></g>`;
+}
+function cyl(x, y, w, h, label, sub='', cls='', fill='var(--card)'){
+  return `<g class="${cls}">
+    <path d="M${x} ${y+14} v${h-28} a${w/2} 14 0 0 0 ${w} 0 v${-(h-28)}" fill="${fill}" stroke="var(--ink)" stroke-width="2.6"/>
+    <ellipse cx="${x+w/2}" cy="${y+14}" rx="${w/2}" ry="14" fill="var(--amber-soft)" stroke="var(--ink)" stroke-width="2.6"/>
+    <text class="t-serif" x="${x+w/2}" y="${y+h/2+12}" text-anchor="middle" style="font-size:26px">${label}</text>
+    ${sub?`<text class="t-sub" x="${x+w/2}" y="${y+h/2+34}" text-anchor="middle">${sub}</text>`:''}</g>`;
+}
+function boxT(x, y, w, h, title, sub='', o={}){
+  const fill = o.fill || 'var(--card)';
+  return `<g class="${o.cls||''}" ${D(o.delay||0)}>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fill}" stroke="var(--ink)"
+      stroke-width="${o.sw||2.5}" ${o.dash?'stroke-dasharray="8 6"':''} ${o.glow?'class="sv-glow"':''}/>
+    <text class="t-serif" x="${x+w/2}" y="${y+(sub?h/2-2:h/2+8)}" text-anchor="middle"
+      style="font-size:${o.fs||22}px;fill:${o.tc||'var(--ink)'}">${title}</text>
+    ${sub?`<text x="${x+w/2}" y="${y+h/2+22}" text-anchor="middle"
+      style="font-size:${o.ss||15}px;fill:${o.sc||'var(--muted)'}">${sub}</text>`:''}</g>`;
+}
+function lockIco(x, y, s=1, col='var(--flame)'){
+  return `<g transform="translate(${x} ${y}) scale(${s})">
+    <path d="M-12 -2 v-8 a12 12 0 0 1 24 0 v8" fill="none" stroke="var(--ink)" stroke-width="3"/>
+    <rect x="-17" y="-3" width="34" height="26" rx="4" fill="${col}" stroke="var(--ink)" stroke-width="2.4"/></g>`;
+}
+function arrowHead(x, y, dir='r', col='var(--ink)'){
+  const p = {r:`M${x-12} ${y-8} L${x} ${y} L${x-12} ${y+8}`, l:`M${x+12} ${y-8} L${x} ${y} L${x+12} ${y+8}`,
+             d:`M${x-8} ${y-12} L${x} ${y} L${x+8} ${y-12}`, u:`M${x-8} ${y+12} L${x} ${y} L${x+8} ${y+12}`}[dir];
+  return `<path d="${p}" fill="none" stroke="${col}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+}
+
+/* one heap tuple: version badge, data, and the two hidden header fields */
+function tup(x, y, o){
+  const w = o.w || 560, h = o.h || 60;
+  const fills = {live:'var(--card)', new:'var(--amber-soft)', dead:'var(--flame-soft)',
+                 gone:'var(--paper)', vis:'var(--leaf-soft)'};
+  const st = o.st || 'live';
+  const dash = (st==='new'||st==='gone') ? 'stroke-dasharray="8 6"' : '';
+  const cell = (cx, lab, val, hi) => `
+    <rect x="${cx}" y="${y+8}" width="98" height="${h-16}" rx="3"
+      fill="${hi?'var(--amber)':'var(--paper-2)'}" stroke="var(--ink)" stroke-width="1.8"/>
+    <text x="${cx+49}" y="${y+24}" text-anchor="middle" style="font-size:13px;fill:var(--muted)">${lab}</text>
+    <text class="t-mono" x="${cx+49}" y="${y+h-15}" text-anchor="middle" style="font-size:18px;fill:var(--ink);font-weight:700">${val}</text>`;
+  return `<g class="${o.cls||''}" ${D(o.delay||0)} ${st==='gone'?'opacity=".45"':''}>
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fills[st]}" stroke="var(--ink)" stroke-width="2.4" ${dash}/>
+    <circle cx="${x+34}" cy="${y+h/2}" r="19" fill="var(--paper)" stroke="var(--ink)" stroke-width="2"/>
+    <text class="t-serif" x="${x+34}" y="${y+h/2+8}" text-anchor="middle" style="font-size:22px">${o.v}</text>
+    <text class="t-mono" x="${x+66}" y="${y+h/2+6}" style="font-size:17px;fill:var(--ink)">${o.data}</text>
+    ${cell(x+w-214, 'xmin', o.xmin, o.hiMin)}${cell(x+w-108, 'xmax', o.xmax, o.hiMax)}
+    ${o.tag?`<text class="t-serif" x="${x+w+18}" y="${y+h/2+9}" style="font-size:24px;fill:${o.tagc||'var(--ink)'}">${o.tag}</text>`:''}
+  </g>`;
+}
+const VIS = 'var(--leaf)', INV = 'var(--flame-ink)', PEND = 'var(--orange-deep)';
+
+/* =====================================================================
+   Scenes
+   ===================================================================== */
+
+/* title: one table, a reader and a writer, both reaching it at once */
+function sceneTitle(st){
+  let g = cyl(410, 40, 180, 170, 'accounts', 'NeoBank', 'sv-pop');
+  g += person(130, 70, 'Asha', 'the reader', 'var(--pencil)', 'sv-pop', 120);
+  g += person(870, 70, 'Ravi', 'the writer', 'var(--flame)', 'sv-pop', 200);
+  g += wire('M175 120 C 280 120, 320 125, 405 125', {color:'var(--pencil-2)', dur:1.6});
+  g += wire('M825 120 C 720 120, 680 125, 595 125', {color:'var(--flame)', dur:1.6, delay:.5});
+  g += `<text x="290" y="100" text-anchor="middle" class="t-mono" style="font-size:15px">SELECT</text>
+        <text x="710" y="100" text-anchor="middle" class="t-mono" style="font-size:15px">UPDATE</text>`;
+  if(st >= 1){
+    g += `<g class="${an(1,st)}">
+      ${boxT(120, 250, 340, 70, 'Part 1: MVCC', 'many transactions, one row', {fill:'var(--pencil-soft)'})}
+      ${boxT(540, 250, 340, 70, 'Part 2: the query engine', 'one query, a million rows', {fill:'var(--amber-soft)'})}</g>`;
+  }
+  return SV('0 0 1000 330', g);
+}
+
+/* the accounts table, with the row we follow all lecture */
+function sceneTable(st){
+  const cols = ['acc_no','holder_name','balance','branch'], xs = [60, 250, 480, 690], W = 880;
+  let g = `<rect x="40" y="30" width="${W}" height="54" fill="var(--amber)" stroke="var(--ink)" stroke-width="2.5"/>`;
+  cols.forEach((c,i)=> g += `<text class="t-mono" x="${xs[i]}" y="64" style="font-size:19px;fill:var(--ink);font-weight:700">${c}</text>`);
+  const rows = [['100','Kiran','72000','Mumbai'],['101','Asha','50000','Pune'],['102','Dev','18000','Delhi']];
+  rows.forEach((r,j)=>{
+    const y = 84 + j*56, me = j === 1;
+    if(me && st < 1) return;
+    g += `<g class="${me ? an(1,st,'sv-pop') : ''}">
+      <rect x="40" y="${y}" width="${W}" height="56" fill="${me?'var(--amber-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="${me?3:2}"/>
+      ${r.map((v,i)=>`<text class="t-mono" x="${xs[i]}" y="${y+36}" style="font-size:19px;fill:var(--ink)">${v}</text>`).join('')}</g>`;
+  });
+  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><path d="M935 168 h28" stroke="var(--ink)" stroke-width="2.6"/>
+     <text class="t-serif" x="930" y="228" text-anchor="end" style="font-size:22px">the row we follow all lecture</text></g>`;
+  return SV('0 0 1000 250', g);
+}
+
+/* locks make readers wait: the writer holds the row, the reader queues */
+function sceneLock(st){
+  let g = person(110, 40, 'Ravi', 'T1, the writer', 'var(--flame)');
+  g += person(890, 40, 'Asha', 'T2, the reader', 'var(--pencil)');
+  const locked = st >= 1;
+  g += boxT(360, 60, 280, 100, locked ? '40000 ?' : '50000', locked ? 'acc 101, write in progress' : 'acc 101, committed',
+            {fill: locked ? 'var(--flame-soft)' : 'var(--card)', fs:30});
+  if(locked){
+    g += wire('M160 110 L 355 110', {color:'var(--flame)', dur:1.4});
+    g += `<g class="${an(1,st,'sv-pop')}">${lockIco(640, 58, 1.1)}</g>
+          <text class="t-mono" x="258" y="95" text-anchor="middle" style="font-size:15px">UPDATE, not committed</text>`;
+  }
+  if(st >= 2){
+    g += `<path d="M840 110 L 700 110" class="wire live"/>
+      <circle cx="712" cy="110" r="7" fill="var(--pencil-2)" class="sv-blip"/>
+      <g class="${an(2,st,'sv-fade')}"><text class="t-serif" x="770" y="160" text-anchor="middle" style="font-size:26px;fill:var(--flame-ink)">T2 waits...</text>
+      <text class="t-mono" x="770" y="92" text-anchor="middle" style="font-size:15px">SELECT balance</text></g>`;
+  }
+  return SV('0 0 1000 200', g);
+}
+
+/* MVCC: two versions, the reader takes the committed one, instantly */
+function sceneMvcc(st){
+  let g = person(110, 40, 'Ravi', 'T1, the writer', 'var(--flame)');
+  g += person(890, 40, 'Asha', 'T2, the reader', 'var(--pencil)');
+  g += boxT(360, 30, 280, 70, 'v1: 50000', 'committed', {fs:26});
+  g += boxT(360, 116, 280, 70, 'v2: 40000', 'not yet committed', {fs:26, fill:'var(--amber-soft)', dash:true});
+  g += wire('M160 150 L 355 150', {color:'var(--flame)', dur:1.6});
+  if(st >= 1){
+    g += wire('M840 66 L 645 66', {color:'var(--pencil-2)', dur:1.1});
+    g += wire('M645 82 L 840 82', {color:'var(--leaf)', dur:1.1, delay:.55, live:false, stroke:'transparent'});
+    g += `<g class="${an(1,st,'sv-fade')}"><text class="t-serif" x="745" y="130" text-anchor="middle" style="font-size:26px;fill:var(--leaf)">50000, instantly</text></g>`;
+  }
+  if(st >= 2){
+    g += `<g class="${an(2,st,'sv-fade')}">${person(110, 230, 'Kiran', 'T3, another writer', 'var(--flame)')}
+      <path d="M160 300 C 260 300, 300 180, 355 170" class="wire"/>
+      ${lockIco(300, 238, .9)}
+      <text class="t-serif" x="440" y="300" style="font-size:24px;fill:var(--flame-ink)">writer vs. writer on the same row: still queues</text></g>`;
+  }
+  return SV(`0 0 1000 ${st>=2?370:200}`, g);
+}
+
+/* a long report reads one frozen instant while transfers commit around it */
+function sceneSnapshot(st){
+  let g = `<line x1="80" y1="170" x2="920" y2="170" stroke="var(--ink)" stroke-width="2.4"/>`;
+  for(let m=0;m<=5;m++) g += `<text class="t-sub" x="${80+m*168}" y="198" text-anchor="middle">${m} min</text>
+      <line x1="${80+m*168}" y1="164" x2="${80+m*168}" y2="176" stroke="var(--ink)" stroke-width="2"/>`;
+  g += `<rect x="80" y="112" width="840" height="40" rx="4" fill="var(--pencil-soft)" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-mono" x="100" y="138" style="font-size:17px;fill:var(--ink)">SELECT SUM(balance) FROM accounts;</text>
+    <line x1="80" y1="30" x2="80" y2="160" stroke="var(--pencil-2)" stroke-width="3" stroke-dasharray="7 6"/>
+    <text class="t-serif" x="92" y="40" style="font-size:22px;fill:var(--pencil-2)">snapshot taken here</text>`;
+  if(st >= 1){
+    for(let i=0;i<34;i++){
+      const x = 120 + i*23.5;
+      g += `<g class="${an(1,st,'sv-pop')}" ${D(i*35)}><line x1="${x}" y1="66" x2="${x}" y2="96" stroke="var(--flame)" stroke-width="3"/>
+        <circle cx="${x}" cy="62" r="5" fill="var(--flame)" stroke="var(--ink)" stroke-width="1.4"/></g>`;
+    }
+    g += `<text class="t-sub" x="920" y="40" text-anchor="end">each tick: a transfer commits</text>`;
+  }
+  return SV('0 0 1000 210', g);
+}
+
+/* append-only: UPDATE expires v1 and appends v2 in the heap page */
+function sceneHeap(st){
+  let g = `<rect x="130" y="20" width="740" height="${st>=1?210:130}" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.6"/>
+    <text class="t-sub" x="148" y="46">heap page 0 of accounts</text>`;
+  g += tup(160, 62, {v:'v1', data:'(101, Asha, 50000)', xmin:'500', xmax: st>=1?'802':'0', hiMax: st===1,
+         st: st>=1?'dead':'live', w:540, tag: st>=1?'expired (pending)':'live', tagc: st>=1?PEND:VIS});
+  g += `<text class="t-mono" x="148" y="86" text-anchor="end" style="font-size:15px">(0,1)</text>`;
+  if(st >= 1){
+    g += tup(160, 146, {v:'v2', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', hiMin:true, st:'new', w:540,
+           tag:'new, appended', tagc:PEND, cls:an(1,st,'sv-rise'), delay:200});
+    g += `<text class="t-mono" x="148" y="170" text-anchor="end" style="font-size:15px">(0,2)</text>
+      <path d="M110 92 C 70 110, 70 150, 110 170" fill="none" stroke="var(--pencil-2)" stroke-width="2.6" stroke-dasharray="6 5"/>
+      ${arrowHead(112, 171, 'r', 'var(--pencil-2)')}`;
+  }
+  return SV(`0 0 1000 ${st>=1?240:160}`, g);
+}
+
+/* one tuple, enlarged, with its two hidden columns called out */
+function sceneHeader(st){
+  let g = tup(150, 90, {v:'v2', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', w:640, h:78, hiMin: st===0, hiMax: st===1});
+  g += `<g><path d="M634 86 C 630 50, 560 36, 470 36" fill="none" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-serif" x="460" y="42" text-anchor="end" style="font-size:24px">xmin: the transaction that created me</text></g>`;
+  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><path d="M742 172 C 740 205, 690 216, 610 216" fill="none" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-serif" x="600" y="222" text-anchor="end" style="font-size:24px">xmax: the transaction that expired me (0 = still current)</text></g>`;
+  return SV('0 0 1000 240', g);
+}
+
+/* the visibility rule as two gates a tuple must pass */
+function sceneRule(st){
+  let g = tup(20, 90, {v:'v', data:'a tuple', xmin:'xmin', xmax:'xmax', w:330, h:64});
+  const gate = (x, n, t1, t2, on) => `<g>
+    <rect x="${x}" y="40" width="200" height="164" rx="4" fill="${on?'var(--amber)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.6" ${on?'class="sv-glow"':''}/>
+    <text class="t-serif" x="${x+100}" y="80" text-anchor="middle" style="font-size:26px">Rule ${n}</text>
+    <text x="${x+100}" y="120" text-anchor="middle" style="font-size:17px;fill:var(--ink-2)">${t1}</text>
+    <text x="${x+100}" y="144" text-anchor="middle" style="font-size:17px;fill:var(--ink-2)">${t2}</text></g>`;
+  g += gate(400, 1, 'xmin committed at or', 'before my snapshot', st===0);
+  if(st >= 1) g += `<g class="${an(1,st,'sv-rise')}">${gate(640, 2, 'xmax is 0, or had not', 'committed by my snapshot', st===1)}
+     <text class="t-serif" x="620" y="130" text-anchor="middle" style="font-size:22px">AND</text></g>`;
+  if(st >= 2){
+    g += wire('M355 122 L 400 122', {live:false});
+    g += wire('M300 225 L 930 225', {color:'var(--leaf)', dur:1.6});
+    g += `<g class="${an(2,st,'sv-pop')}"><text class="t-serif" x="930" y="130" text-anchor="end" style="font-size:30px;fill:var(--leaf)">visible</text></g>`;
+  }
+  return SV('0 0 1000 245', g);
+}
+
+/* the worked trace, as the heap looks at each moment */
+const TRACE = [
+  {tu:[{v:'v1',data:'(101, Asha, 50000)',xmin:'500',xmax:'0',st:'live',tag:'live',tagc:VIS}],
+   rd:'Transaction 500 inserted the row long ago.'},
+  {tu:[{v:'v1',data:'(101, Asha, 50000)',xmin:'500',xmax:'802',hiMax:true,st:'live',tag:'expiring',tagc:PEND},
+       {v:'v2',data:'(101, Asha, 40000)',xmin:'802',xmax:'0',hiMin:true,st:'new',tag:'uncommitted',tagc:PEND}],
+   rd:'Transaction 802 (Ravi) is running an UPDATE and has not committed.'},
+  {tu:[{v:'v1',data:'(101, Asha, 50000)',xmin:'500',xmax:'802',st:'vis',tag:'visible',tagc:VIS},
+       {v:'v2',data:'(101, Asha, 40000)',xmin:'802',xmax:'0',st:'new',tag:'invisible',tagc:INV}],
+   rd:'Transaction 803 (Asha) reads: 802 has not committed, so she sees 50000.'},
+  {tu:[{v:'v1',data:'(101, Asha, 50000)',xmin:'500',xmax:'802',st:'dead',tag:'dead tuple',tagc:INV},
+       {v:'v2',data:'(101, Asha, 40000)',xmin:'802',xmax:'0',st:'vis',tag:'visible',tagc:VIS}],
+   rd:'802 commits. Transaction 804 reads and sees 40000; v1 is now dead.'}
+];
+function sceneTuples(state, st, fresh){
+  let g = `<text class="t-serif" x="40" y="34" style="font-size:24px;fill:var(--pencil-2)">${state.rd}</text>`;
+  state.tu.forEach((t,i)=> g += tup(40, 54 + i*74, Object.assign({w:600, cls: fresh ? 'sv-rise' : '', delay:i*120}, t)));
+  return SV(`0 0 1000 ${54 + state.tu.length*74 + 6}`, g);
+}
+
+/* DELETE stamps xmax; an older snapshot still counts the row */
+function sceneDelete(st){
+  let g = tup(40, 40, {v:'v1', data:'(102, Dev, 18000)', xmin:'610', xmax: st>=1?'910':'0', hiMax: st===1, w:600,
+                       st: st>=1?'dead':'live', tag: st>=1?'expired by 910':'live', tagc: st>=1?INV:VIS});
+  if(st >= 1) g += `<g class="${an(1,st,'sv-fade')}"><text class="t-sub" x="40" y="130">DELETE never erases: it writes Ravi's XID (910) into xmax</text></g>`;
+  if(st >= 2){
+    g += `<g class="${an(2,st,'sv-rise')}">
+      ${boxT(40, 160, 380, 76, 'Month-end report', 'snapshot taken before 910 committed', {fill:'var(--pencil-soft)'})}
+      <text class="t-serif" x="460" y="208" style="font-size:26px;fill:var(--leaf)">still counts account 102</text></g>`;
+    g += wire('M230 158 L 230 104', {color:'var(--pencil-2)', dur:1.2});
+  }
+  return SV(`0 0 1000 ${st>=2?250:150}`, g);
+}
+
+/* ROLLBACK: nothing to undo, the aborted XID just never counts */
+function sceneRollback(st){
+  const ab = st >= 1;
+  let g = tup(40, 30, {v:'v1', data:'(101, Asha, 40000)', xmin:'802', xmax:'900', hiMax:true, w:600,
+                       st: ab?'vis':'live', tag: ab?'still visible':'expiring', tagc: ab?VIS:PEND});
+  g += tup(40, 110, {v:'v2', data:'(101, Asha, 45000)', xmin:'900', xmax:'0', hiMin:true, w:600,
+                     st: ab?'gone':'new', tag: ab?'invisible forever':'uncommitted', tagc: ab?INV:PEND});
+  g += boxT(40, 200, 250, 64, 'txn 900', ab ? 'ROLLBACK: aborted' : 'running', {fill: ab?'var(--flame-soft)':'var(--amber-soft)'});
+  if(st >= 2) g += `<g class="${an(2,st,'sv-fade')}"><text class="t-serif" x="320" y="244" style="font-size:28px">Nothing to undo. No undo log was ever written.</text></g>`;
+  return SV('0 0 1000 280', g);
+}
+
+/* the 905 story: DELETE then ROLLBACK on the committed v2 */
+const RB = [
+  {tu:[{v:'v2',data:'(101, Asha, 40000)',xmin:'802',xmax:'0',st:'live',tag:'live',tagc:VIS}],
+   rd:'Committed state after transaction 802.'},
+  {tu:[{v:'v2',data:'(101, Asha, 40000)',xmin:'802',xmax:'905',hiMax:true,st:'dead',tag:'expiring',tagc:PEND}],
+   rd:'Ravi (transaction 905) runs DELETE and has not committed.'},
+  {tu:[{v:'v2',data:'(101, Asha, 40000)',xmin:'802',xmax:'905*',st:'vis',tag:'live again',tagc:VIS}],
+   rd:'Ravi rolls back. 905 never commits, so the expiry is ignored.'}
+];
+
+/* VACUUM over a strip of tuple slots */
+function sceneVacuum(st){
+  const N = 24, pin = [4, 11, 17];
+  const dead = [1,4,6,9,11,14,17,19,22];
+  let g = `<text class="t-sub" x="40" y="30">accounts, one heap file: each slot holds one tuple</text>`;
+  const full = st >= 3;
+  let live = 0;
+  for(let i=0;i<N;i++){
+    let kind = dead.includes(i) ? 'd' : 'l';
+    if(st >= 2 && kind === 'd' && !pin.includes(i)) kind = 'f';
+    if(st === 1 || st === 2){ /* the long report is holding three of them */ }
+    if(full && kind !== 'l' && !pin.includes(i)) continue;
+    if(full && pin.includes(i)) kind = 'd';
+    const x = full ? 40 + (live++) * 38 : 40 + i*38;
+    const fill = kind==='l' ? 'var(--leaf-soft)' : kind==='d' ? 'var(--flame)' : 'var(--paper)';
+    g += `<rect class="nofx ${st===2&&kind==='f'?'sv-fade':''}" x="${x}" y="46" width="32" height="54" rx="3" fill="${fill}"
+      stroke="var(--ink)" stroke-width="2" ${kind==='f'?'stroke-dasharray="5 4"':''}/>`;
+    if(st >= 1 && st < 3 && pin.includes(i)) g += `<g class="${an(1,st,'sv-pop')}">${lockIco(x+16, 128, .6, 'var(--pencil)')}</g>`;
+  }
+  const len = full ? live*38 : N*38;
+  g += `<line x1="40" y1="${st>=1&&st<3?156:120}" x2="${40+len-6}" y2="${st>=1&&st<3?156:120}" stroke="var(--ink)" stroke-width="2"/>
+    <text class="t-sub" x="${40+len-6}" y="${st>=1&&st<3?178:142}" text-anchor="end">file size: ${full?'smaller, rewritten':'unchanged'}</text>`;
+  if(st >= 1 && st < 3) g += `<text class="t-sub" x="40" y="178" style="fill:var(--pencil-2)">a long-running report still needs these three</text>`;
+  if(st === 2) g += `<rect class="nofx sv-sweep" x="36" y="40" width="6" height="66" fill="var(--amber-2)" style="--sweep:${N*38}px"/>`;
+  return SV('0 0 1000 190', g);
+}
+
+/* bloat: a job that UPDATEs every row doubles the heap */
+function sceneBloat(st){
+  let g = `<text class="t-sub" x="40" y="30">accounts heap, in tuples</text>
+    <rect x="40" y="46" width="440" height="60" rx="3" fill="var(--leaf-soft)" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-serif" x="260" y="86" text-anchor="middle" style="font-size:26px">1M live tuples</text>`;
+  if(st >= 1){
+    g += `<rect class="${an(1,st,'sv-rise')}" x="480" y="46" width="440" height="60" rx="3" fill="var(--flame-soft)" stroke="var(--ink)" stroke-width="2.4"/>
+      <text class="t-serif ${an(1,st,'sv-fade')}" x="700" y="86" text-anchor="middle" style="font-size:26px">1M dead tuples</text>
+      <path d="M40 124 H920" stroke="var(--ink)" stroke-width="2"/>${arrowHead(920,124)}
+      <text class="t-serif" x="480" y="154" text-anchor="middle" style="font-size:24px">about 2x the table size on disk</text>`;
+  }
+  return SV('0 0 1000 166', g);
+}
+
+/* autovacuum: dead tuples climb to a threshold, then get reclaimed */
+function sceneSaw(st){
+  const lowT = st >= 1;
+  const thr = lowT ? 110 : 60;           /* y of the threshold line */
+  let g = `<line x1="60" y1="190" x2="940" y2="190" stroke="var(--ink)" stroke-width="2.4"/>
+    <line x1="60" y1="30" x2="60" y2="190" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-sub" x="70" y="26">n_dead_tup</text><text class="t-sub" x="940" y="212" text-anchor="end">time</text>
+    <line x1="60" y1="${thr}" x2="940" y2="${thr}" stroke="var(--flame)" stroke-width="2.4" stroke-dasharray="8 6"/>
+    <text x="935" y="${thr-8}" text-anchor="end" style="font-size:16px;fill:var(--flame-ink)">autovacuum threshold${lowT?' (lower scale factor)':''}</text>`;
+  const teeth = lowT ? 8 : 4, w = 880/teeth;
+  let d = 'M60 190';
+  for(let i=0;i<teeth;i++){ d += ` L${60+(i+1)*w} ${thr} L${60+(i+1)*w} 190`; }
+  g += `<path d="${d}" fill="none" stroke="var(--pencil-2)" stroke-width="3" class="sv-draw" style="--len:3000"/>`;
+  return SV('0 0 1000 220', g);
+}
+
+/* PostgreSQL keeps old versions in the heap; Oracle moves them to undo */
+function sceneOracle(st){
+  let g = `<text class="t-serif" x="250" y="32" text-anchor="middle" style="font-size:26px">PostgreSQL</text>
+    <text class="t-serif" x="750" y="32" text-anchor="middle" style="font-size:26px">Oracle</text>
+    <line x1="500" y1="14" x2="500" y2="210" stroke="var(--line)" stroke-width="3" stroke-dasharray="7 6"/>`;
+  g += `<rect x="70" y="50" width="360" height="150" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-sub" x="84" y="72">the table (heap)</text>
+    ${boxT(90, 84, 320, 46, 'v1: 50000 (old)', '', {fill:'var(--flame-soft)', fs:20})}
+    ${boxT(90, 140, 320, 46, 'v2: 40000 (new)', '', {fill:'var(--leaf-soft)', fs:20})}`;
+  g += `<rect x="560" y="50" width="380" height="72" rx="4" fill="var(--paper-2)" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-sub" x="574" y="70">the table</text>
+    ${boxT(580, 76, 340, 40, 'row: 40000 (overwritten)', '', {fill:'var(--leaf-soft)', fs:19})}
+    <rect x="560" y="150" width="380" height="58" rx="4" fill="var(--pencil-soft)" stroke="var(--ink)" stroke-width="2.4"/>
+    <text class="t-sub" x="574" y="170">undo segment</text>
+    <text class="t-serif" x="750" y="196" text-anchor="middle" style="font-size:20px">old copy: 50000</text>
+    <path d="M750 120 L750 148" stroke="var(--pencil-2)" stroke-width="2.6"/>${arrowHead(750,150,'d','var(--pencil-2)')}`;
+  return SV('0 0 1000 220', g);
+}
+
+/* the four-stage pipeline; the lit stage is the one being discussed */
+const STAGES = [
+  {t:'Parser', q:'valid grammar?', o:'parse tree'},
+  {t:'Analyzer', q:'exists? allowed?', o:'query tree'},
+  {t:'Planner', q:'which is cheapest?', o:'plan tree'},
+  {t:'Executor', q:'run it, row by row', o:'rows'}];
+function scenePipe(lit, cum){
+  let g = boxT(10, 70, 120, 70, 'SQL', 'text', {fill:'var(--amber-soft)'});
+  STAGES.forEach((s,i)=>{
+    const x = 170 + i*205, on = cum ? i < lit : i === lit - 1;
+    g += boxT(x, 60, 170, 90, s.t, s.q, {fill: on ? 'var(--amber)' : 'var(--card)', glow: i === lit-1, fs:24, sc:'var(--ink-2)'});
+    g += `<text class="t-mono" x="${x+85}" y="182" text-anchor="middle" style="font-size:15px;fill:${on?'var(--ink)':'var(--muted)'}">${s.o}</text>`;
+    g += `<path d="M${x-35} 105 H${x-4}" stroke="var(--ink)" stroke-width="2.4"/>${arrowHead(x-3,105)}`;
+  });
+  if(lit >= 1 && !cum){
+    const x = 170 + (lit-1)*205;
+    g += wire(`M70 150 C 70 215, ${x+85} 215, ${x+85} 152`, {color:'var(--pencil-2)', dur:1.6});
+  }
+  return SV('0 0 1000 225', g);
+}
+
+/* lexing: the string falls apart into typed tokens */
+const TOKS = [['SELECT','k'],['holder_name','i'],[',','o'],['balance','i'],['FROM','k'],['accounts','i'],
+  ['WHERE','k'],['branch','i'],['=','o'],["'Pune'",'l'],['AND','k'],['balance','i'],['&gt;','o'],['100000','l'],[';','o']];
+function tokenChips(st){
+  const cls = {k:'tk-k', i:'tk-i', o:'tk-o', l:'tk-l'};
+  return `<div class="toks">${TOKS.map((t,i)=>`<span class="tok ${cls[t[1]]} ${st===0?'pop':''}" style="animation-delay:${i*45}ms">${t[0]}</span>`).join('')}</div>
+    <div class="tok-key"><span class="tok tk-k">keyword</span><span class="tok tk-i">identifier</span><span class="tok tk-o">operator</span><span class="tok tk-l">literal</span></div>`;
+}
+
+/* the parse tree, built one branch per step */
+function sceneTree(st){
+  const N = [
+    {id:'r', t:'SelectStmt', x:500, y:36, s:0, op:1},
+    {id:'tl', t:'targetList', x:170, y:120, p:'r', s:1},
+    {id:'a', t:'holder_name', x:90, y:210, p:'tl', s:1, leaf:1},
+    {id:'b', t:'balance', x:250, y:210, p:'tl', s:1, leaf:1},
+    {id:'fc', t:'fromClause', x:470, y:120, p:'r', s:2},
+    {id:'c', t:'accounts', x:470, y:210, p:'fc', s:2, leaf:1},
+    {id:'wc', t:'whereClause', x:780, y:120, p:'r', s:3},
+    {id:'and', t:'AND', x:780, y:210, p:'wc', s:3, op:1},
+    {id:'e1', t:"branch = 'Pune'", x:675, y:300, p:'and', s:3, leaf:1},
+    {id:'e2', t:'balance &gt; 100000', x:890, y:300, p:'and', s:3, leaf:1}];
+  const by = Object.fromEntries(N.map(n=>[n.id,n]));
+  let g = '';
+  N.forEach(n=>{ if(n.p && st >= n.s){ const p = by[n.p];
+    g += `<path class="${an(n.s,st,'sv-draw')}" style="--len:300" d="M${p.x} ${p.y+20} L${n.x} ${n.y-20}" stroke="var(--ink)" stroke-width="2.2" fill="none"/>`; }});
+  N.forEach(n=>{ if(st < n.s) return;
+    const w = n.t.replace('&gt;','>').length*10.5 + 30;
+    g += `<g class="${an(n.s,st,'sv-pop')}"><rect x="${n.x-w/2}" y="${n.y-20}" width="${w}" height="40" rx="4"
+      fill="${n.op?'var(--amber)':n.leaf?'var(--card)':'var(--pencil-soft)'}" stroke="var(--ink)" stroke-width="2.3"/>
+      <text class="t-mono" x="${n.x}" y="${n.y+6}" text-anchor="middle" style="font-size:17px;fill:var(--ink);font-weight:${n.leaf?400:700}">${n.t}</text></g>`; });
+  return SV('0 0 1000 330', g);
+}
+
+/* the analyzer checks each name against the catalog */
+function sceneCatalog(st){
+  const cats = [['pg_class','does the table exist?'],['pg_attribute','do columns and types fit?'],
+                ['privileges','may this role SELECT?'],['views','is it a view to expand?']];
+  let g = boxT(20, 100, 220, 90, 'query tree', 'names, not yet checked', {fill:'var(--pencil-soft)'});
+  cats.forEach((c,i)=>{
+    const y = 10 + i*72, on = st === i, done = st > i;
+    g += boxT(560, y, 260, 58, c[0], c[1], {fill: on ? 'var(--amber)' : done ? 'var(--leaf-soft)' : 'var(--card)', fs:20, ss:14, glow:on});
+    g += `<text class="t-serif" x="840" y="${y+37}" style="font-size:22px;fill:${done?'var(--leaf)':'var(--muted)'}">${done?'checked':''}</text>`;
+    if(on) g += wire(`M240 145 C 400 145, 420 ${y+29}, 556 ${y+29}`, {color:'var(--pencil-2)', dur:1.3});
+  });
+  return SV('0 0 1000 300', g);
+}
+
+/* view substitution: the view node is replaced by its definition */
+function sceneView(st){
+  let g = boxT(170, 10, 300, 56, 'SELECT holder_name', '', {fs:24, fill:'var(--pencil-soft)'});
+  g += `<path d="M320 66 L320 100" stroke="var(--ink)" stroke-width="2.4"/>`;
+  if(st < 2){
+    g += boxT(180, 100, 280, 60, 'FROM pune_hnw', 'a view: a stored query', {fs:24, ss:15, fill:'var(--amber)', glow: st===1, sc:'var(--ink-2)'});
+  }
+  if(st === 1){
+    g += `<g class="sv-rise">${boxT(20, 210, 600, 84, 'the view definition', "SELECT * FROM accounts WHERE branch = 'Pune' AND balance &gt; 100000", {fs:22, ss:15, dash:true})}</g>`;
+    g += wire('M320 208 L 320 162', {color:'var(--pencil-2)', dur:1.2});
+  }
+  if(st >= 2){
+    g += `<g class="${an(2,st,'sv-pop')}">${boxT(180, 100, 280, 60, 'FROM accounts', 'the base table', {fs:24, ss:15, fill:'var(--leaf-soft)'})}
+      <path d="M320 160 L320 200" stroke="var(--ink)" stroke-width="2.4"/>
+      ${boxT(20, 200, 600, 60, "WHERE branch = 'Pune' AND balance &gt; 100000", '', {fs:21})}</g>`;
+  }
+  return SV('0 0 640 305', g);
+}
+
+/* 1M rows, 30% Pune, 5% of those above 100000 */
+function sceneFunnel(st){
+  const bars = [['1,000,000 rows', 1, 'reltuples'], ['x 0.30 = 300,000', .3, "branch = 'Pune'"], ['x 0.05 = 15,000', .015, 'balance &gt; 100000']];
+  let g = '';
+  bars.forEach((b,i)=>{
+    const w = Math.max(40, 680*b[1]);
+    g += `<g class="${st>=0?'sv-rise':''}" ${D(i*260)}><rect x="40" y="${16+i*62}" width="${w}" height="44" rx="3"
+      fill="${i===2?'var(--amber)':i===1?'var(--pencil-soft)':'var(--card)'}" stroke="var(--ink)" stroke-width="2.3"/>
+      <text class="t-serif" x="${w+56}" y="${48+i*62}" style="font-size:24px">${b[0]}</text>
+      <text class="t-sub" x="${w+56}" y="${30+i*62}" style="font-size:14px">${b[2]}</text></g>`;
+  });
+  return SV('0 0 1000 206', g);
+}
+
+/* four ways to read the table */
+function sceneScanKind(k){
+  let g = '';
+  const pages = (y, hiFn, n=12) => { let s=''; for(let i=0;i<n;i++){ const h = hiFn(i);
+    s += `<rect class="nofx" x="${60+i*74}" y="${y}" width="62" height="58" rx="3" fill="${h?'var(--amber)':'var(--card)'}" stroke="var(--ink)" stroke-width="2"/>`; }
+    return s; };
+  const tree = () => `<g>${boxT(420, 10, 160, 40, 'B-tree root', '', {fs:18, fill:'var(--pencil-soft)'})}
+      ${boxT(250, 70, 140, 36, 'branch', '', {fs:16})}${boxT(610, 70, 140, 36, 'branch', '', {fs:16})}
+      <path d="M470 50 L330 70 M530 50 L680 70" stroke="var(--ink)" stroke-width="2"/></g>`;
+  if(k === 0){
+    g += `<text class="t-sub" x="60" y="40">every heap page, first to last</text>${pages(60, ()=>false)}
+      <rect class="nofx sv-sweep" x="56" y="54" width="8" height="70" fill="var(--amber-2)" style="--sweep:880px"/>`;
+  } else if(k === 1){
+    g += tree() + pages(180, i=>[1,6,9].includes(i));
+    [[330,1],[330,6],[680,9]].forEach(([x,i],j)=> g += wire(`M${x} 106 C ${x} 150, ${91+i*74} 140, ${91+i*74} 178`, {color:'var(--flame)', dur:1.4, delay:j*.3}));
+    g += `<text class="t-sub" x="940" y="170" text-anchor="end">one random heap hop per match</text>`;
+  } else if(k === 2){
+    g += tree() + `<g opacity=".35">${pages(180, ()=>false)}</g>
+      ${boxT(760, 116, 200, 44, 'visibility map', 'all-visible', {fs:16, ss:13, fill:'var(--leaf-soft)'})}
+      <text class="t-serif" x="60" y="150" style="font-size:22px;fill:var(--leaf)">answered from the index alone</text>`;
+  } else {
+    g += `<text class="t-sub" x="60" y="26">1. collect matching locations into a bitmap</text>`;
+    for(let i=0;i<24;i++) g += `<rect class="nofx" x="${60+i*37}" y="36" width="30" height="30" fill="${[1,2,6,7,9,15,16,20].includes(i)?'var(--pencil)':'var(--card)'}" stroke="var(--ink)" stroke-width="1.6"/>`;
+    g += `<text class="t-sub" x="60" y="100">2. visit only those pages, in page order</text>${pages(112, i=>[0,1,3,4,8,10].includes(i))}
+      <path d="M60 190 H920" stroke="var(--pencil-2)" stroke-width="2.6"/>${arrowHead(920,190,'r','var(--pencil-2)')}`;
+  }
+  return SV(`0 0 1000 ${k===0?130:k===3?205:245}`, g);
+}
+
+/* three ways to join */
+function sceneJoin(k){
+  let g = '';
+  if(k === 0){
+    g += `<text class="t-sub" x="60" y="26">outer: 10 Pune accounts</text><text class="t-sub" x="600" y="26">inner: transactions, indexed on acc_no</text>`;
+    [0,1,2].forEach(i=> g += boxT(60, 40+i*60, 200, 46, 'acc '+(103+i*2), '', {fs:18}));
+    g += boxT(600, 90, 300, 60, 'index on acc_no', '', {fs:20, fill:'var(--pencil-soft)'});
+    [0,1,2].forEach(i=> g += wire(`M260 ${63+i*60} C 420 ${63+i*60}, 440 120, 596 120`, {color:'var(--pencil-2)', dur:1.5, delay:i*.5}));
+  } else if(k === 1){
+    g += `<text class="t-sub" x="60" y="26">1. build a hash table on the smaller input</text><text class="t-sub" x="600" y="26">2. scan the bigger input, probing</text>`;
+    for(let b=0;b<4;b++) g += boxT(60, 40+b*44, 260, 36, 'bucket '+b, '', {fs:16, fill: b===2?'var(--amber)':'var(--card)'});
+    for(let r=0;r<5;r++) g += boxT(620, 40+r*36, 280, 30, 'txn row '+(r+1), '', {fs:15});
+    g += wire('M616 127 C 480 127, 460 145, 324 145', {color:'var(--flame)', dur:1.3});
+  } else {
+    g += `<text class="t-sub" x="60" y="26">accounts, sorted by acc_no</text><text class="t-sub" x="600" y="26">transactions, sorted by acc_no</text>`;
+    const a = [101,103,105,106], b = [101,101,103,105,106];
+    a.forEach((v,i)=> g += boxT(60, 40+i*42, 200, 34, String(v), '', {fs:17}));
+    b.forEach((v,i)=> g += boxT(640, 40+i*36, 200, 30, String(v), '', {fs:16}));
+    b.forEach((v,i)=>{ const ai = a.indexOf(v); g += `<path class="sv-draw" style="--len:500;animation-delay:${i*180}ms" d="M260 ${57+ai*42} L640 ${55+i*36}" stroke="var(--leaf)" stroke-width="2.4" fill="none"/>`; });
+  }
+  return SV('0 0 1000 230', g);
+}
+
+/* the three candidate costs, grown as bars */
+function sceneCost(st){
+  const C = [['Seq Scan', 22000, '12,000 pages x 1.0 + 1M rows x 0.01'], ['Index Scan on branch', 60000, '15,000 random heap hops x 4.0'],
+             ['Bitmap Heap Scan', 9000, 'medium selectivity, pages visited in order']];
+  let g = '';
+  C.forEach((c,i)=>{
+    if(st < i+1) return;
+    const w = 600 * c[1]/60000, y = 16 + i*72, win = i === 2 && st >= 3;
+    g += `<text class="t-serif" x="250" y="${y+32}" text-anchor="end" style="font-size:22px">${c[0]}</text>
+      <rect class="${an(i+1,st,'sv-rise')}" x="270" y="${y}" width="${w}" height="46" rx="3" fill="${win?'var(--leaf)':i===1?'var(--flame-soft)':'var(--pencil-soft)'}" stroke="var(--ink)" stroke-width="2.3"/>
+      <text class="t-mono" x="${280+w}" y="${y+22}" style="font-size:17px;fill:var(--ink);font-weight:700">about ${c[1].toLocaleString('en-US')}${i===1?'+':''}${win?'  (winner)':''}</text>
+      <text x="${280+w}" y="${y+42}" style="font-size:14px;fill:var(--muted)">${c[2]}</text>`;
+  });
+  return SV('0 0 1000 230', g);
+}
+
+/* Volcano: calls go down, rows come up */
+function sceneVolcano(st){
+  const nodes = [['Limit (3)', 20], ['Sort (balance DESC)', 110], ['Seq Scan on accounts', 200]];
+  let g = boxT(60, 20, 160, 60, 'client', '', {fill:'var(--pencil-soft)'});
+  nodes.forEach((n,i)=> g += boxT(360, n[1], 300, 64, n[0], 'open() / next() / close()', {fs:21, ss:14}));
+  g += `<path d="M220 50 H356" stroke="var(--ink)" stroke-width="2.2"/>`;
+  if(st >= 1){
+    g += wire('M470 84 L470 108', {color:'var(--pencil-2)', dur:.8}) + wire('M470 174 L470 198', {color:'var(--pencil-2)', dur:.8, delay:.3});
+    g += wire('M560 198 L560 174', {color:'var(--leaf)', dur:.8, delay:.6, live:false}) + wire('M560 108 L560 84', {color:'var(--leaf)', dur:.8, delay:.9, live:false});
+    g += `<g class="${an(1,st,'sv-fade')}"><text class="t-serif" x="700" y="130" style="font-size:22px;fill:var(--pencil-2)">next() calls cascade down</text>
+      <text class="t-serif" x="700" y="166" style="font-size:22px;fill:var(--leaf)">rows bubble up, one at a time</text></g>`;
+  }
+  return SV('0 0 1000 280', g);
+}
+
+/* the execution trace: scan checks every tuple, Sort drains it, Limit stops at 3 */
+const XROWS = [
+  ['Asha', 40000, 'Pune', 'vis', 'filtered: balance'],
+  ['Kiran', 250000, 'Pune', 'del', 'invisible: deleted, xmax committed'],
+  ['Meera', 180000, 'Pune', 'vis', 'kept'],
+  ['Dev', 320000, 'Mumbai', 'vis', 'filtered: branch'],
+  ['Rohan', 125000, 'Pune', 'vis', 'kept'],
+  ['Nisha', 410000, 'Pune', 'vis', 'kept'],
+  ['Arjun', 150000, 'Pune', 'new', 'invisible: xmin not committed'],
+  ['Tara', 105000, 'Pune', 'vis', 'kept']];
+function sceneExec(st){
+  let g = boxT(30, 40, 190, 54, 'Limit (3)', '', {fs:21, glow: st===1||st===3});
+  g += boxT(30, 120, 190, 54, 'Sort', 'pipeline-breaker', {fs:21, ss:13, glow: st===2});
+  g += boxT(30, 200, 190, 54, 'Seq Scan', 'filter + MVCC check', {fs:21, ss:13, glow: st===2});
+  g += `<path d="M125 94 V120 M125 174 V200" stroke="var(--ink)" stroke-width="2.2"/>`;
+  if(st >= 2){
+    XROWS.forEach((r,i)=>{
+      const ok = r[4] === 'kept', y = 40 + i*29;
+      g += `<g class="${an(2,st,'sv-rise')}" ${D(i*140)}>
+        <rect class="nofx" x="270" y="${y}" width="260" height="24" rx="3" fill="${ok?'var(--leaf-soft)':'var(--paper-2)'}" stroke="var(--ink)" stroke-width="1.5"/>
+        <text class="t-mono" x="280" y="${y+17}" style="font-size:14px;fill:var(--ink)">${r[0]}, ${r[1].toLocaleString('en-US')}, ${r[2]}</text>
+        <text x="545" y="${y+17}" style="font-size:15px;fill:${ok?'var(--leaf)':r[3]==='vis'?'var(--muted)':'var(--flame-ink)'}">${r[4]}</text></g>`;
+    });
+  }
+  if(st >= 3){
+    const top = XROWS.filter(r=>r[4]==='kept').sort((a,b)=>b[1]-a[1]).slice(0,3);
+    g += `<g class="${an(3,st,'sv-rise')}"><text class="t-sub" x="820" y="58">returned to the client</text>
+      ${top.map((r,i)=>boxT(820, 70+i*50, 170, 40, r[0]+', '+r[1].toLocaleString('en-US'), '', {fs:17, fill:'var(--amber)'})).join('')}</g>`;
+    g += wire('M220 60 C 240 14, 700 14, 816 84', {color:'var(--leaf)', dur:1.6});
+  }
+  return SV('0 0 1000 280', g);
+}
+
+/* =====================================================================
+   The story spine
+   ===================================================================== */
+const CHAPTERS = [
+ {n:1, t:'One table, one story',        of:['title','agenda','neobank']},
+ {n:2, t:'Readers and writers',          of:['recap','problem','promise','longread']},
+ {n:3, t:'Row versions',                 of:['appendonly','xminxmax','rule','trace','columns']},
+ {n:4, t:'Deleting, undoing, cleaning',  of:['delete','rollback','rbtrace','vacuum','advantages','bloat','autovac','oracle']},
+ {n:5, t:'From SQL text to a query tree',of:['pipeline','running','parser','parsetree','analyzer','rewriter']},
+ {n:6, t:'Choosing the cheapest plan',   of:['costphil','stats','scans','joins','decision']},
+ {n:7, t:'Running the plan',             of:['volcano','exectrace','wrap','exit','questions']}
+];
+
+const OPENERS = {
+ 2:{when:'Monday morning at NeoBank',
+    problem:'Thousands of customers read balances while tellers write transfers, often to the same rows.',
+    detail:'If every write locks its row, every read of that row waits. The bank would move at the speed of its slowest transfer.',
+    next:'We already have tools for concurrency. First, let us see what they cost.'},
+ 3:{when:'Under the hood',
+    problem:'How can Asha read 50000 while Ravi is writing 40000 to the very same row?',
+    detail:'Because PostgreSQL never overwrites a row. It keeps both versions and stamps each one with the transactions that created and expired it.',
+    next:'Three pieces: append-only versions, two hidden columns and one visibility rule.'},
+ 4:{when:'Ravi changes his mind',
+    problem:'If nothing is ever overwritten, what do DELETE and ROLLBACK actually do?',
+    detail:'And if every UPDATE leaves an old version behind, who clears the old versions away, and what happens if nobody does?',
+    next:'The same xmin/xmax mechanism answers all three questions.'},
+ 5:{when:'The pivot',
+    problem:'A perfectly isolated transaction can still be slow.',
+    detail:'So far: many transactions, one row. From here on: one query, a million rows.',
+    next:'What is the very first thing the engine does with the string SELECT ...?'},
+ 6:{when:'Stage 3 of 4',
+    problem:'The same query can be answered in many ways, and some are far slower than others.',
+    detail:'Scan the whole table? Use an index on branch, or one on balance? Once joins appear, the options multiply.',
+    next:'Guessing is not a strategy. The planner estimates a cost for every option.'},
+ 7:{when:'Stage 4 of 4',
+    problem:'The planner hands over a tree. Something has to run it.',
+    detail:'The executor runs it on demand, one row at a time. It is also where the MVCC rule from Part 1 physically happens.',
+    next:'Three tiny functions power the whole thing.'}
+};
+
+function chapterBody(ch, st){
+  const o = OPENERS[ch.n] || {};
+  return `<div class="chapter">
+    <div class="ch-rail"><span class="ch-num">${String(ch.n).padStart(2,'0')}</span>
+      <span class="ch-of">Chapter ${ch.n} of ${CHAPTERS.length}</span></div>
+    <div class="ch-body">
+      <div class="ch-when">${o.when||''}</div>
+      <h2 class="ch-title">${ch.t}</h2>
+      ${st>=1?`<p class="ch-problem ${pp(1,st)}">${o.problem||''}</p>`:''}
+      ${st>=2?`<p class="ch-detail ${pp(2,st)}">${o.detail||''}</p>`:''}
+      ${st>=3?`<p class="ch-next ${pp(3,st)}">${o.next||''}</p>`:''}
+    </div></div>`;
+}
+
+const DECK = [
+/* ------------------------------ chapter 1 ------------------------------ */
+{ id:'title', kick:'Adhyyan', eyebrow:'PostgreSQL internals', title:'MVCC & the Query Engine',
+  tag:'intro', steps:[
+  {note:'Welcome. Today we open the hood of PostgreSQL. One table sits in the middle of everything: NeoBank\'s accounts. Asha reads it, Ravi writes it, and both do so at the same moment.'},
+  {note:'Two halves. First, how many concurrent transactions coexist on one row: MVCC. Second, what the engine does with a single query that touches a million rows: the four-stage pipeline.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneTitle(st)}</div>
+    <p class="lede">Readers and writers touch the same data at the same time. <b>How does PostgreSQL keep them out of each other's way</b>, and what does it do with the SQL you send it?</p>` },
+
+{ id:'agenda', kick:'two halves, 72 minutes', eyebrow:'Today\'s lecture', title:'Where we are going',
+  tag:'agenda', steps:[
+  {note:'Part one, about 39 minutes: concurrency and MVCC. Why concurrent reads never wait.'},
+  {note:'Part two, about 33 minutes: query processing. What the engine does with your SQL text, stage by stage.'},
+  {note:'One story ties the two halves together: NeoBank, with Asha the reader and Ravi the writer.'}],
+  body:(st)=>`
+    <div class="cards" style="grid-template-columns:1fr 1fr;gap:.9rem">
+      ${card('Part 1, about 39 min','Concurrency & MVCC',
+        '<span class="ul">Transaction toolbox recap<br>The MVCC promise: reads never wait<br>Row versions and the hidden xmin / xmax<br>Dead tuples, VACUUM and bloat<br>Contrast: how Oracle does it</span>','tl','lock',pp(0,st))}
+      ${st>=1?card('Part 2, about 33 min','Query Processing',
+        '<span class="ul">The four-stage pipeline<br>Parser: the parse tree<br>Analyzer / Rewriter: catalog and views<br>Planner: statistics and cost<br>Executor: the Volcano model</span>','pp','search',pp(1,st)):''}
+    </div>
+    ${st>=2?`<p class="lede ${pp(2,st)}">One continuous story runs through every concept: <b>NeoBank</b>, with Asha the reader and Ravi the writer.</p>`:''}` },
+
+{ id:'neobank', kick:'one table, one story', eyebrow:'The running example', title:'NeoBank',
+  tag:'setup', steps:[
+  {note:'Everything today happens on this one table: accounts, with an account number, a holder name, a balance and a branch.'},
+  {note:'Row 101 is Asha\'s account, with a balance of 50,000 in the Pune branch. Keep this row in mind: the anomaly, MVCC, xmin/xmax, VACUUM and the whole query pipeline all run on it.'},
+  {note:'Two characters. Asha reads: a customer checking her balance, or a report running SELECT. Ravi writes: a teller processing a transfer with an UPDATE.'}],
+  body:(st)=>`
+    <div style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:1rem;align-items:center">
+      ${sql(`${K('CREATE TABLE')} accounts (
+  acc_no       ${K('INT PRIMARY KEY')},
+  holder_name  ${K('TEXT')},
+  balance      ${K('NUMERIC')},
+  branch       ${K('TEXT')}
+);`)}
+      <div class="stage-row">${sceneTable(st)}</div>
+    </div>
+    ${st>=2?`<div class="cards" style="grid-template-columns:1fr 1fr">
+      ${card('The reader','Asha','A customer checking her balance, or a report generator running <code>SELECT</code>.','tl','users','pop d1')}
+      ${card('The writer','Ravi','A teller processing a transfer: an <code>UPDATE</code> on the fly.','warn','bolt','pop d2')}</div>`:''}` },
+
+/* ------------------------------ chapter 2 ------------------------------ */
+{ id:'recap', kick:'the tools we already have', eyebrow:'Recap', title:'Transaction-level optimization',
+  tag:'recap', steps:[
+  {note:'Quick recall: what problem do transactions solve? Ask for one anomaly. Then the toolbox. First, isolation levels: Read Committed, Repeatable Read, Serializable.'},
+  {note:'Explicit locking: LOCK TABLE, or SELECT ... FOR UPDATE. Precise control, paid for in blocking.'},
+  {note:'Advisory locks: application-defined locks for coordination outside the table data.'},
+  {note:'And underneath all of them: MVCC, PostgreSQL\'s default concurrency mechanism.'},
+  {note:'The bridge question: if we solve every anomaly with locks, readers queue behind writers. Can Asha read a consistent balance without waiting for Ravi? PostgreSQL says yes.'}],
+  body:(st)=>`
+    <div class="cards" style="grid-template-columns:1fr 1fr;gap:.6rem">
+      ${card('Isolation levels','Correctness vs. concurrency','Read Committed, Repeatable Read and Serializable trade one against the other.','tl','layers',pp(0,st))}
+      ${st>=1?card('Explicit locking','Precise, but blocking','<code>LOCK TABLE</code> and <code>SELECT ... FOR UPDATE</code> give control at the cost of waiting.','warn','lock',pp(1,st)):''}
+      ${st>=2?card('Advisory locks','Your own locks','<code>pg_advisory_lock</code> coordinates work outside the table data.','pp','shield',pp(2,st)):''}
+      ${st>=3?card('Underneath it all','MVCC','The engine beneath every tool above: PostgreSQL\'s default concurrency mechanism.','good','db',pp(3,st)):''}
+    </div>
+    ${st>=4?`<p class="lede ${pp(4,st)}">Locks everywhere means readers queue behind writers. <b>Can Asha read a consistent balance without waiting for Ravi?</b></p>`:''}` },
+
+{ id:'problem', kick:'the pain we want to remove', eyebrow:'The problem', title:'Locks make readers wait',
+  tag:'problem', steps:[
+  {note:'Account 101 holds 50,000, committed. Nothing is happening yet.'},
+  {note:'Ravi begins a transfer: UPDATE accounts SET balance = 40000 WHERE acc_no = 101. His transaction is open. He has not committed.'},
+  {note:'Asha asks for her balance. Under pure locking her SELECT blocks on Ravi\'s row lock. She waits for a transfer that has not even committed. With thousands of reads a second, that is unacceptable.'},
+  {note:'Name the two things precisely. The anomaly we must still prevent: the dirty read, because Asha must never see the uncommitted 40000. The pain we want to remove: the reader waiting at all.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneLock(st)}</div>
+    ${st>=3?`<div class="cards" style="grid-template-columns:1fr 1fr">
+      ${card('Must still prevent','The dirty read','T2 must never see the uncommitted 40000.','warn','ban','pop d1')}
+      ${card('Want to remove','Reader blocking','A SELECT should not wait for somebody else\'s UPDATE.','tl','clock','pop d2')}</div>`:''}` },
+
+{ id:'promise', kick:'multi-version concurrency control', eyebrow:'MVCC', title:'The core promise',
+  tag:'mvcc', steps:[
+  {note:'Instead of one copy guarded by locks, the database keeps multiple versions of the row. v1 with 50,000 is committed; Ravi\'s v2 with 40,000 is not.'},
+  {note:'Asha\'s SELECT returns 50,000 instantly. No wait. And it is correct: Ravi has not committed, so 50,000 is the only balance that officially exists.'},
+  {note:'Know the boundary. Writers still block writers on the same row: if Kiran also updates account 101, he queues behind Ravi. MVCC removes reader-writer blocking, not writer-writer blocking.'}],
+  body:(st)=>`
+    <p class="quote">"Readers and writers do not block each other: a SELECT never waits on an UPDATE."</p>
+    <div class="stage-row">${sceneMvcc(st)}</div>
+    <p class="lede">Every transaction sees a <b>consistent snapshot</b>: the versions that were committed when its snapshot was taken.</p>` },
+
+{ id:'longread', kick:'one frozen instant', eyebrow:'Why it matters', title:'Consistent snapshots for long reads',
+  tag:'mvcc', steps:[
+  {note:'A month-end report sums every balance. It runs for about five minutes, and its snapshot is taken the moment it starts.'},
+  {note:'Meanwhile hundreds of transfers commit. With MVCC the report still sees one consistent moment in time; none of those commits leak into its sum.'},
+  {note:'Without MVCC you have two bad options: lock the whole table and freeze the bank, or read an inconsistent sum that never existed at any single moment.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneSnapshot(st)}</div>
+    ${st>=2?`<div class="cards" style="grid-template-columns:1fr 1fr">
+      ${card('With MVCC','One consistent instant','The report sees the bank as it was at the start, even as transfers commit around it.','good','shield','pop d1')}
+      ${card('Without MVCC','Freeze or be wrong','Lock the whole table and the bank stops, or read a sum that never existed.','warn','ban','pop d2')}</div>`:''}` },
+
+/* ------------------------------ chapter 3 ------------------------------ */
+{ id:'appendonly', kick:'implementing MVCC, 1 of 3', eyebrow:'Row versions', title:'UPDATE appends, never overwrites',
+  tag:'mvcc', steps:[
+  {note:'Before Ravi\'s UPDATE, the heap page holds one version of row 101: v1, 50,000, at location (0,1).'},
+  {note:'The UPDATE does not modify v1 in place. It marks v1 as expired and appends a brand-new version, v2, at (0,2). That is exactly why Asha\'s read did not wait: her answer, v1, was never overwritten.'},
+  {note:'Vocabulary: each physical version is a tuple. Expired versions awaiting cleanup are dead tuples. You can prove the append yourself: select ctid before and after the UPDATE and watch it change.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneHeap(st)}</div>
+    ${st>=2?`<div class="cards ${pp(2,st)}" style="grid-template-columns:1fr 1fr">
+      ${card('Vocabulary','Tuple and dead tuple','Each physical version is a <b>tuple</b>. Expired versions waiting for cleanup are <b>dead tuples</b>.','tl','layers')}
+      ${card('Prove it','Watch the ctid move','<code>SELECT ctid, * FROM accounts;</code> before and after the UPDATE.','pp','search')}</div>`:''}` },
+
+{ id:'xminxmax', kick:'implementing MVCC, 2 of 3', eyebrow:'Visibility bookkeeping', title:'xmin and xmax',
+  tag:'mvcc', steps:[
+  {note:'Every transaction gets a monotonically increasing transaction ID, an XID. Every tuple carries two hidden columns. xmin: the XID of the transaction that created this version, the INSERT or the UPDATE that produced it.'},
+  {note:'xmax: the XID of the transaction that expired this version, a superseding UPDATE or a DELETE. Zero means the version is still current.'},
+  {note:'These columns are hidden, but you can ask for them by name. Here is row 101 after Ravi\'s UPDATE: two versions, and the XIDs tell the story.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneHeader(st)}</div>
+    ${st>=2?`<div class="${pp(2,st)}" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1rem;align-items:center">
+      ${sql(`${K('SELECT')} xmin, xmax, acc_no, balance
+  ${K('FROM')} accounts;`)}
+      ${rowsTable(['xmin','xmax','acc_no','balance'],[['500','802','101','50000'],['802','0','101','40000']], 9, '1fr 1fr 1fr 1fr')}
+    </div>`:''}` },
+
+{ id:'rule', kick:'the logic run on every tuple', eyebrow:'The rule', title:'Which version can I see?',
+  tag:'mvcc', steps:[
+  {note:'A tuple is visible to my snapshot only if two things hold. Rule one: created and visible. Its xmin committed at or before the moment my snapshot was taken.'},
+  {note:'Rule two: not yet expired. Its xmax is zero, or the transaction in xmax had not committed when my snapshot was taken.'},
+  {note:'Both rules, joined by AND. The executor runs this on every tuple it touches. On the next slide the class applies it themselves.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneRule(st)}</div>
+    <p class="lede">A tuple is visible to my snapshot only if <b>Rule 1 AND Rule 2</b> both hold.</p>` },
+
+{ id:'trace', kick:'apply the rule before each reveal', eyebrow:'Worked example, account 101', title:'Tracing xmin and xmax',
+  tag:'centerpiece', steps:[
+  {note:'The centerpiece: walk it row by row. Transaction 500 inserted the row long ago. v1 holds 50,000 with xmin 500 and xmax 0.'},
+  {note:'Transaction 802, Ravi, runs the UPDATE and has not committed. v1 gets xmax 802. v2 is born with xmin 802 and xmax 0.'},
+  {note:'Transaction 803, Asha, runs a SELECT. Ask the class to apply the rule first. v1: xmax 802 has not committed, so v1 is visible. v2: xmin 802 has not committed, so v2 is invisible. She sees 50,000.'},
+  {note:'Now 802 commits, and transaction 804 runs a SELECT. v2 is visible and shows 40,000. v1 is expired for everyone new: it is now a dead tuple.'}],
+  body:(st)=>`
+    <div class="stage-row" style="flex:0 0 auto">${sceneTuples(TRACE[st], st, true)}</div>
+    ${rowsTable(['XID','Type','Event','Reader sees'],[
+      ['500','write','Row inserted long ago','-'],
+      ['802','write','UPDATE, not committed','-'],
+      ['803','read','SELECT while 802 is open','50000'],
+      ['804','read','SELECT after 802 commits','40000']], st, '.6fr .6fr 2fr 1fr', st)}` },
+
+{ id:'columns', kick:'so the trace reads unambiguously', eyebrow:'Reading the trace', title:'What each column means',
+  tag:'reference', steps:[
+  {note:'XID: the ID of the transaction driving the event. Type: write means INSERT, UPDATE or DELETE, which change tuples; read means SELECT, which only observes them. Event: the statement and its commit state.'},
+  {note:'Heap tuple: the physical version in the table, v1, v2 and so on. xmin: the XID that created it. xmax: the XID that expired it, or zero if it is still current.'},
+  {note:'The link: a write transaction\'s XID is stamped into xmin and/or xmax. A read transaction\'s XID never is; it only determines the snapshot.'}],
+  body:(st)=>`
+    <div class="cards" style="grid-template-columns:repeat(3,1fr);gap:.55rem">
+      ${card('XID','Who is acting','The transaction ID, increasing by one for each new transaction.','',  '', pp(0,st))}
+      ${card('Type','Write or read','A write changes tuples; a read only observes them.','tl','', pp(0,st))}
+      ${card('Event','What ran','The statement, and whether it has committed.','pp','', pp(0,st))}
+      ${st>=1?card('Heap tuple','Which version','The physical row version (v1, v2, ...) and its balance.','','', pp(1,st)):''}
+      ${st>=1?card('xmin','Created by','The XID of the INSERT, or of the UPDATE that produced it.','good','', pp(1,st)):''}
+      ${st>=1?card('xmax','Expired by','The XID of the UPDATE or DELETE that expired it; 0 if current.','warn','', pp(1,st)):''}
+    </div>
+    ${st>=2?`<p class="lede ${pp(2,st)}">A write transaction's XID is stamped into <b>xmin and/or xmax</b>. A read transaction's XID never is: <b>it only determines the snapshot</b>.</p>`:''}` },
+
+/* ------------------------------ chapter 4 ------------------------------ */
+{ id:'delete', kick:'same mechanism', eyebrow:'DELETE', title:'Mark, don\'t remove',
+  tag:'mvcc', steps:[
+  {note:'Ravi closes account 102: DELETE FROM accounts WHERE acc_no = 102. Watch the tuple.'},
+  {note:'It is not erased. Its xmax is set to Ravi\'s XID, 910. That is all a DELETE does.'},
+  {note:'So a report that started before Ravi committed still counts account 102. The version is still in the heap, and by the visibility rule it is still visible to that older snapshot.'}],
+  body:(st)=>`
+    ${sql(`${K('DELETE FROM')} accounts ${K('WHERE')} acc_no = ${S('102')};   ${C('-- Ravi closes an account')}`)}
+    <div class="stage-row">${sceneDelete(st)}</div>` },
+
+{ id:'rollback', kick:'a free lunch', eyebrow:'ROLLBACK', title:'Rollback is nearly free',
+  tag:'mvcc', steps:[
+  {note:'Transaction 900 updates account 101: v1 gets xmax 900, and a new v2 appears with xmin 900.'},
+  {note:'Then 900 issues ROLLBACK. It is simply marked aborted. v1\'s xmax is 900, but 900 aborted, so the expiry never took effect: everyone still sees v1. v2\'s xmin is 900, which aborted, so v2 is invisible to every transaction, forever.'},
+  {note:'There is nothing to undo. The new version was simply never marked committed. Hold on to this, because it is the big contrast with Oracle later in this chapter.'}],
+  body:(st)=>`<div class="stage-row">${sceneRollback(st)}</div>` },
+
+{ id:'rbtrace', kick:'the rollback, applied', eyebrow:'Account 101 again', title:'Ravi closes the account, then aborts',
+  tag:'mvcc', steps:[
+  {note:'Start from the committed state after transaction 802: v2, 40,000, xmin 802, xmax 0. Live.'},
+  {note:'Ravi closes the account: transaction 905 runs DELETE. That sets v2\'s xmax to 905. The row is not removed, just marked, and 905 has not committed.'},
+  {note:'Ravi rolls back. Because 905 aborted, its expiry is ignored by everyone: v2 is live again and account 101 stays open. On disk xmax still holds 905, but an aborted XID means not expired; VACUUM tidies it later. Nothing was undone physically: the DELETE simply never counted.'}],
+  body:(st)=>`
+    <div class="stage-row" style="flex:0 0 auto">${sceneTuples(RB[st], st, true)}</div>
+    ${rowsTable(['XID','Type','Event','v2 is'],[
+      ['802','state','Committed state after 802','live'],
+      ['905','write','DELETE, not committed','expiring'],
+      ['905','abort','ROLLBACK: 905 never commits','live again']], st, '.6fr .6fr 2fr 1fr', st)}` },
+
+{ id:'vacuum', kick:'implementing MVCC, 3 of 3', eyebrow:'The garbage collector', title:'Dead tuples & VACUUM',
+  tag:'maintenance', steps:[
+  {note:'Dead tuples still occupy space in the heap. Here the red slots are dead: expired versions from committed UPDATEs and DELETEs.'},
+  {note:'VACUUM may reclaim a tuple only if it is dead AND no longer visible to ANY running transaction. That second condition matters: a long-running report can keep old versions alive, like these three.'},
+  {note:'Plain VACUUM marks the rest as free and reusable. Note what it does not do: the file stays the same size. It recycles space; it does not shrink the table.'},
+  {note:'VACUUM FULL rewrites the table compactly and does shrink it, but it takes an exclusive lock while it runs. Autovacuum is the background daemon that runs plain VACUUM automatically once dead tuples cross a threshold.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneVacuum(st)}</div>
+    <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:.9rem;align-items:center">
+      ${sql(`${K('SELECT')} n_dead_tup
+  ${K('FROM')} pg_stat_user_tables;`)}
+      <p class="lede">${st<2?'VACUUM reclaims tuples that are <b>dead and invisible to every running transaction</b>.':st<3?'<b>Plain VACUUM recycles</b>: the space is reusable, but the file does not shrink.':'<b>VACUUM FULL rewrites</b> the table and shrinks it, under an exclusive lock.'}</p>
+    </div>` },
+
+{ id:'advantages', kick:'evaluating the design', eyebrow:'What append-only MVCC buys', title:'Four advantages',
+  tag:'evaluation', steps:[
+  {note:'One: readers never block writers, and writers never block readers. The promise, delivered.'},
+  {note:'Two: instant, cheap ROLLBACK. There is nothing to undo.'},
+  {note:'Three: no separate undo storage to size or manage. Old versions live in the table itself.'},
+  {note:'Four: consistent snapshots for long reports, with no table locks.'}],
+  body:(st)=>`
+    <div class="cards" style="grid-template-columns:1fr 1fr;gap:.7rem">
+      ${card('01','No blocking','Readers never block writers, and writers never block readers.','good','shield',pp(0,st))}
+      ${st>=1?card('02','Instant ROLLBACK','Nothing to undo: the new version is simply never committed.','good','bolt',pp(1,st)):''}
+      ${st>=2?card('03','No undo storage','Nothing extra to size or manage: old versions live in the table.','good','db',pp(2,st)):''}
+      ${st>=3?card('04','Long reports, no locks','Consistent snapshots without locking the table.','good','clock',pp(3,st)):''}
+    </div>` },
+
+{ id:'bloat', kick:'every choice is a trade-off', eyebrow:'The cost', title:'Table bloat',
+  tag:'trade-off', steps:[
+  {note:'accounts has one million rows. That is one million live tuples in the heap.'},
+  {note:'A daily interest-credit job UPDATEs every one of them. Every UPDATE appends a tuple, so the heap now holds about two million tuples, half of them dead. The table is roughly twice its logical size.'},
+  {note:'And everything slows down: sequential scans read twice the pages, and the cache holds only half as much useful data. This is why autovacuum is not optional.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneBloat(st)}</div>
+    ${st>=2?`<div class="cards" style="grid-template-columns:repeat(3,1fr)">
+      ${card('Disk','About 2x the size','The heap holds a dead copy of every row.','warn','db','pop d1')}
+      ${card('Scans','2x the pages','A sequential scan reads the dead tuples too.','warn','search','pop d2')}
+      ${card('Cache','Half the useful data','Dead tuples take up memory that live data needed.','warn','layers','pop d3')}</div>`:''}` },
+
+{ id:'autovac', kick:'not optional maintenance', eyebrow:'Maintenance', title:'Autovacuum & VACUUM ANALYZE',
+  tag:'maintenance', steps:[
+  {note:'Autovacuum must run continuously. Dead tuples climb until they cross a threshold, then autovacuum reclaims them.'},
+  {note:'High-update tables like accounts may need it to run more often: lower autovacuum_vacuum_scale_factor and the threshold drops, so each cleanup is smaller and bloat never builds up.'},
+  {note:'And one command does two jobs. VACUUM reclaims dead tuples. ANALYZE refreshes the table\'s statistics. Plant the seed: statistics become the hero of the second half.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneSaw(st)}</div>
+    ${st>=2?`<div class="${pp(2,st)}" style="display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1fr) minmax(0,1fr);gap:.7rem;align-items:center">
+      ${sql(`${K('VACUUM ANALYZE')} accounts;`)}
+      ${card('VACUUM','Reclaims dead tuples','Frees their space for reuse.','good','trash')}
+      ${card('ANALYZE','Refreshes statistics','Hold that thought: the planner depends on it.','pp','gauge')}</div>`:''}` },
+
+{ id:'oracle', kick:'same concept, two designs', eyebrow:'Contrast', title:'How Oracle implements MVCC',
+  tag:'contrast', steps:[
+  {note:'A second design sharpens the evaluation. PostgreSQL keeps old versions in the table itself. Oracle overwrites the row in place and copies the old data into undo segments. Where old versions live: heap versus undo.'},
+  {note:'UPDATE: PostgreSQL appends a new tuple; Oracle overwrites in place and moves the old copy to undo.'},
+  {note:'ROLLBACK: nearly free in PostgreSQL, because the new version is simply ignored. Oracle must apply undo records, which is costly.'},
+  {note:'Cleanup: PostgreSQL carries the VACUUM burden and bloat in the table. Oracle recycles undo space automatically.'},
+  {note:'Classic failures: table bloat and XID wraparound for PostgreSQL; ORA-01555 snapshot too old for Oracle, when undo is recycled while a long query still needs it. One design pays at read and cleanup time, the other at write time.'}],
+  body:(st)=>`
+    <div class="stage-row" style="flex:0 0 auto;height:34%">${sceneOracle(st)}</div>
+    ${rowsTable(['','PostgreSQL','Oracle'],[
+      ['Old versions live','in the table itself (heap)','in undo segments'],
+      ['UPDATE','appends a new tuple','overwrites in place, old copy to undo'],
+      ['ROLLBACK','nearly free (new version ignored)','must apply undo records (costly)'],
+      ['Cleanup burden','VACUUM and bloat in the table','undo space recycled automatically'],
+      ['Classic failure','table bloat, XID wraparound','ORA-01555 snapshot too old']], st, '1fr 1.3fr 1.3fr', st)}
+    ${st>=4?`<p class="lede pop">Same concept, two designs: <b>one pays at read and cleanup time, the other at write time</b>.</p>`:''}` },
+
+/* ------------------------------ chapter 5 ------------------------------ */
+{ id:'pipeline', kick:'you cannot tune what you cannot see', eyebrow:'Part 2 overview', title:'The four-stage pipeline',
+  tag:'part 2', steps:[
+  {note:'Every query passes through four stages, and every EXPLAIN plan and index decision maps to one of them. Here is the whole pipeline at a glance.'},
+  {note:'Stage one, the Parser: is this valid SQL grammar? It produces a parse tree.'},
+  {note:'Stage two, the Analyzer and Rewriter: do these objects exist, are you allowed to use them, and should the query be rewritten? It produces a query tree.'},
+  {note:'Stage three, the Planner: of all the ways to get this answer, which is cheapest? It produces a plan tree.'},
+  {note:'Stage four, the Executor: run the chosen plan, row by row, and send rows to the client.'}],
+  body:(st)=>`<div class="stage-row">${scenePipe(st, false)}</div>
+    <p class="lede">${['From the raw SQL string to rows on the client: <b>four stages</b>, and each one can go wrong in its own way.',
+      '<b>Parser</b>: grammar only. Is this valid SQL?',
+      '<b>Analyzer / Rewriter</b>: meaning. Do these objects exist, may you use them, and should the query be rewritten?',
+      '<b>Planner</b>: cost. Of all the ways to get this answer, which is cheapest?',
+      '<b>Executor</b>: run the chosen plan, row by row.'][st]}</p>` },
+
+{ id:'running', kick:'follow this one all the way', eyebrow:'The running query', title:'Pune high-net-worth accounts',
+  tag:'setup', steps:[
+  {note:'One query for the rest of the lecture. We will follow this string through all four stages until rows reach the client.'},
+  {note:'Note the two-part WHERE clause: branch equals Pune, AND balance above 100,000. It matters at the parser, where AND becomes a node, and again at the planner, where each half gets its own selectivity estimate.'}],
+  body:(st)=>`
+    ${sql(`${K('SELECT')} holder_name, balance
+  ${K('FROM')}   accounts
+ ${K('WHERE')}  <span class="${st>=1?'hl':''}">branch = ${S("'Pune'")}</span>
+   ${K('AND')}  <span class="${st>=1?'hl':''}">balance &gt; ${S('100000')}</span>;`, 'big')}
+    <p class="lede">${st>=1?'Two conditions joined by <b>AND</b>. They come back at the parser, and again at the planner.':'We will trace <b>this string</b> all the way to rows on the client.'}</p>` },
+
+{ id:'parser', kick:'grammar, not meaning', eyebrow:'Stage 1 of 4', title:'The Parser',
+  tag:'stage 1', steps:[
+  {note:'The engine receives a flat string. First, lexing: break it into tokens. Keywords, identifiers, literals and operators.'},
+  {note:'Then parsing: arrange the tokens according to the SQL grammar into a hierarchical parse tree. The crucial limitation: the parser knows grammar, not meaning.'},
+  {note:'So SELECT unicorn FROM narnia parses perfectly well; the parser has no idea whether tables exist. But SELECT * FORM accounts dies right here with a syntax error, because FORM breaks the grammar.'}],
+  body:(st)=>`
+    ${tokenChips(st)}
+    ${st>=1?`<p class="lede ${pp(1,st)}"><b>Parsing</b> arranges the tokens, according to the SQL grammar, into a parse tree. The parser knows <b>grammar, not meaning</b>.</p>`:''}
+    ${st>=2?`<div class="cards" style="grid-template-columns:1fr 1fr">
+      ${card('Parses fine','<code>SELECT unicorn FROM narnia;</code>','Whether a column or table exists is not a question of grammar.','good','','pop d1')}
+      ${card('Dies here','<code>SELECT * FORM accounts;</code>','<code>FORM</code> breaks the grammar: syntax error.','warn','','pop d2')}</div>`:''}` },
+
+{ id:'parsetree', kick:'what every later stage operates on', eyebrow:'Stage 1 output', title:'Parse tree of the running query',
+  tag:'stage 1', steps:[
+  {note:'The root: a SELECT statement.'},
+  {note:'The target list: the columns in the SELECT clause, holder_name and balance.'},
+  {note:'The from clause: the table reference, accounts. Still just a name at this point.'},
+  {note:'The where clause: a Boolean expression tree. AND becomes a node with two children. Operators are internal nodes; operands are leaves. Every later stage operates on this structure.'}],
+  body:(st)=>`<div class="stage-row">${sceneTree(st)}</div>
+    ${st>=3?`<p class="lede pop">Operators become <b>internal nodes</b>; operands become <b>leaves</b>. AND is a node with two children.</p>`:''}` },
+
+{ id:'analyzer', kick:'meaning, checked against the catalog', eyebrow:'Stage 2 of 4', title:'Analyzer / Rewriter: four jobs',
+  tag:'stage 2', steps:[
+  {note:'Job one, catalog lookup: does accounts exist? It is looked up in pg_class and the name is replaced with an OID. "relation acounts does not exist" is caught here, not by the parser.'},
+  {note:'Job two, attribute check: do the columns exist, and do the types make sense? Checked against pg_attribute. branch greater than 100000 on a TEXT column is a type error, raised here.'},
+  {note:'Job three, permission check: does the role have SELECT on the table? A role called intern with view-only rights gets "permission denied" here.'},
+  {note:'Job four, view substitution: the Rewriter proper splices a view\'s definition into the query tree. That is the next slide.'},
+  {note:'So the error order is: syntax errors from the parser first, then existence, then privileges, both raised in the analyzer.'}],
+  body:(st)=>{
+    const jobs = [
+      ['Job 1','Catalog lookup','Look up <code>accounts</code> in <code>pg_class</code> and replace names with OIDs. "relation acounts does not exist" is raised here, not by the parser.','tl','db'],
+      ['Job 2','Attribute check','Do the columns exist, and do the types fit? Checked against <code>pg_attribute</code>. <code>branch &gt; 100000</code> on TEXT is a type error.','pp','grid'],
+      ['Job 3','Permission check','Does the role have SELECT? The <code>intern</code> role, with view-only rights, gets "permission denied".','warn','lock'],
+      ['Job 4','View substitution','The Rewriter proper: a view\'s definition is spliced into your query tree.','good','layers']];
+    const j = jobs[Math.min(st,3)];
+    return `<div class="stage-row">${sceneCatalog(Math.min(st,4))}</div>
+      <div class="cards">${st<4 ? card(j[0], j[1], j[2], j[3], j[4], 'pop') :
+        card('Error order','Syntax, then existence, then privileges','Syntax errors come from the parser. Existence and privilege errors both come from the analyzer.','pp','route','pop')}</div>`; } },
+
+{ id:'rewriter', kick:'stored queries, not data', eyebrow:'The Rewriter', title:'Views are spliced in',
+  tag:'stage 2', steps:[
+  {note:'Someone queries a view: SELECT holder_name FROM pune_hnw. To the query tree, pune_hnw is just a name.'},
+  {note:'At rewrite time the view\'s stored definition is fetched: SELECT star FROM accounts WHERE branch is Pune AND balance is above 100,000.'},
+  {note:'And it is spliced into the tree, which becomes exactly our running query against the base table. The punchline: views are stored query fragments, not stored data. After rewriting, the planner never knows a view was involved.'}],
+  body:(st)=>`
+    <div style="display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:1rem;align-items:center">
+      ${sql(`${K('CREATE VIEW')} pune_hnw ${K('AS')}
+  ${K('SELECT')} * ${K('FROM')} accounts
+   ${K('WHERE')} branch = ${S("'Pune'")}
+     ${K('AND')} balance &gt; ${S('100000')};
+
+${K('SELECT')} holder_name ${K('FROM')} pune_hnw;`)}
+      <div class="stage-row">${sceneView(st)}</div>
+    </div>
+    ${st>=2?`<p class="lede pop">After rewriting, the planner sees <b>only base tables</b>. It never knows a view was involved.</p>`:''}` },
+
+/* ------------------------------ chapter 6 ------------------------------ */
+{ id:'costphil', kick:'no fixed rules', eyebrow:'Stage 3 of 4', title:'Cost-based optimization',
+  tag:'stage 3', steps:[
+  {note:'The planner estimates a cost for each candidate plan and picks the cheapest. It follows no fixed rule such as "always use an index". It decides on the actual shape of the data.'},
+  {note:'A question for the room: if 99% of accounts were in Pune, would an index on branch help this query?'},
+  {note:'No. Nearly the whole table qualifies, and hopping from the index to the heap for every row is slower than just reading the table. The planner can know this only if it knows how the data is distributed. Enter statistics.'}],
+  body:(st)=>`
+    <p class="lede">The planner <b>estimates a cost</b> for each candidate and picks the cheapest. No fixed rules like "always use an index": it decides on the <b>actual shape of the data</b>.</p>
+    <div class="cards" style="grid-template-columns:1fr 1fr">
+      ${st>=1?card('Question','99% of accounts are in Pune.','Is an index on <code>branch</code> helpful for this query?','pp','search',pp(1,st)):''}
+      ${st>=2?card('Answer','No, read the table','Nearly every row qualifies. Hopping index to heap per row is slower than one sequential read. To know this, the planner needs <b>statistics</b>.','good','gauge',pp(2,st)):''}
+    </div>` },
+
+{ id:'stats', kick:'the ANALYZE inside VACUUM ANALYZE', eyebrow:'What ANALYZE collects', title:'Statistics',
+  tag:'stage 3', steps:[
+  {note:'ANALYZE samples about 30,000 rows and stores per-table and per-column statistics. reltuples and relpages: one million rows across 12,000 pages. These size every cost formula.'},
+  {note:'null_frac: 2% of branch values are NULL, which shrinks the expected number of matches.'},
+  {note:'n_distinct: branch has 40 distinct values, so by default equality has a selectivity of about one in forty.'},
+  {note:'most_common_vals: but Pune is 30% of all rows. For popular values the planner uses the exact frequency instead.'},
+  {note:'histogram_bounds for balance: from these buckets the planner estimates that balance above 100,000 is about 5% of rows.'},
+  {note:'correlation: acc_no is about 1.0, meaning physical order matches key order, which makes index scans cheaper.'},
+  {note:'Checkpoint: one million times 0.30 times 0.05 is about 15,000 rows. This is the ANALYZE inside VACUUM ANALYZE from the first half; now you know who consumes it.'}],
+  body:(st)=> st < 6 ? rowsTable(['Statistic','NeoBank value','The planner uses it to'],[
+      ['<code>reltuples, relpages</code>','1,000,000 rows / 12,000 pages','size every cost formula'],
+      ['<code>null_frac</code>','2% of branch is NULL','shrink expected matches'],
+      ['<code>n_distinct</code>','branch has 40 distinct values','estimate = (about 1/40)'],
+      ['<code>most_common_vals</code>',"'Pune' = 30% of rows",'use exact frequency for popular values'],
+      ['<code>histogram_bounds</code>','balance: 0, 12k, 45k, ..., 98 lakh','estimate ranges (&gt; 100000 is about 5%)'],
+      ['<code>correlation</code>','acc_no is about 1.0','make index scans cheaper']], st, '1.1fr 1.2fr 1.3fr', st)
+    : `<div class="stage-row">${sceneFunnel(st)}</div>
+       <p class="lede pop">Estimate for our query: <b>1M x 0.30 x 0.05 = about 15,000 rows</b>. This is who consumes the ANALYZE inside VACUUM ANALYZE.</p>` },
+
+{ id:'scans', kick:'the building blocks', eyebrow:'Candidate plans', title:'Scan methods, and when each wins',
+  tag:'stage 3', steps:[
+  {note:'Sequential scan: read every page from start to finish. It wins when a large fraction of rows qualifies, like our 30% in Pune, or when the table is small.'},
+  {note:'Index scan: walk the B-tree, then hop to the heap for each match. It wins for high selectivity, such as acc_no equals 101.'},
+  {note:'Index-only scan: answer from the index alone, with no heap visits, if the index holds every needed column and the visibility map says the pages are all-visible. That is a one-line callback to MVCC.'},
+  {note:'Bitmap scan, the middle ground: collect matching locations into a bitmap, sort them by page, and visit pages in order. It wins for medium selectivity, like our 15,000 rows, and for combining two indexes.'}],
+  body:(st)=>{
+    const c = [
+      ['Sequential Scan','Read every page','Wins when a large fraction qualifies (our 30% in Pune) or the table is small.','tl','search'],
+      ['Index Scan','B-tree, then heap hops','Wins for high selectivity (<code>acc_no = 101</code>).','pp','route'],
+      ['Index-Only Scan','No heap visits','If the index has every needed column and the visibility map allows it: an MVCC callback.','good','layers'],
+      ['Bitmap Heap Scan','Sorted page visits','Wins for medium selectivity (about 15,000 rows) and for combining two indexes.','pp','grid']][st];
+    return `<div class="stage-row">${sceneScanKind(st)}</div>
+      <div class="cards">${card('Scan '+(st+1)+' of 4', c[0], '<b>'+c[1]+'.</b> '+c[2], c[3], c[4], 'pop')}</div>`; } },
+
+{ id:'joins', kick:'join each Pune account with its transactions', eyebrow:'Candidate plans', title:'Join methods, and when each wins',
+  tag:'stage 3', steps:[
+  {note:'Introduce a second table: transactions, with txn_id, acc_no, amount and txn_date. We join each Pune account with its transactions. Nested loop: for each outer row, probe the inner side. It wins when the outer side is tiny and the inner side is indexed: ten accounts, ten indexed probes.'},
+  {note:'Hash join: build a hash table on the smaller input, then scan the bigger input and probe it. It wins for large, unsorted equality joins, and it needs memory.'},
+  {note:'Merge join: sort both sides, or use an order they already have, then zip them together. It wins when the inputs are already sorted, or when both are huge.'},
+  {note:'The planner also permutes join order. A joined with B, then C, can cost enormously more or less than A joined with the result of B and C.'}],
+  body:(st)=>{
+    const k = Math.min(st,2);
+    const c = [
+      ['Nested Loop','For each outer row, probe the inner side.','Wins: a tiny outer side and an indexed inner side (10 accounts x indexed probe).','tl','route'],
+      ['Hash Join','Build a hash on the smaller input, scan the bigger, probing.','Wins: large, unsorted equality joins. Needs memory.','pp','grid'],
+      ['Merge Join','Sort both sides (or use their order), then zip together.','Wins: inputs already sorted, or both huge.','good','split']][k];
+    return `${sql(`transactions(txn_id, acc_no, amount, txn_date)`)}
+      <div class="stage-row">${sceneJoin(k)}</div>
+      <div class="cards">${card('Join '+(k+1)+' of 3', c[0], c[1]+' '+c[2], c[3], c[4], pp(k,st))}</div>
+      ${st>=3?`<p class="lede pop">The planner also permutes <b>join order</b>: (A JOIN B) JOIN C versus A JOIN (B JOIN C) can differ enormously.</p>`:''}`; } },
+
+{ id:'decision', kick:'lowest total cost wins', eyebrow:'The decision', title:'Choosing the winner',
+  tag:'stage 3', steps:[
+  {note:'Each candidate gets a cost in abstract units that blend I/O and CPU: pages times page cost, plus rows times CPU tuple cost, plus operator costs. It is reported as startup cost, two dots, total cost. The lowest total wins.'},
+  {note:'Sequential scan: 12,000 pages at 1.0 plus a million rows at 0.01. About 22,000.'},
+  {note:'Index scan on branch: about 15,000 random heap hops at 4.0 each. 60,000 or more. The "obvious" index is the most expensive option.'},
+  {note:'Bitmap scan: medium selectivity, pages visited in order. About 9,000. The winner.'},
+  {note:'Point at the EXPLAIN output: the cost and the 15,000-row estimate are exactly what we computed by hand. The obvious index lost because the planner knew Pune is 30% of the bank.'}],
+  body:(st)=>`
+    <p class="lede"><b>cost = pages x page_cost + rows x cpu_tuple_cost + operator costs</b>, reported as <code>startup..total</code>.</p>
+    <div class="stage-row">${sceneCost(st)}</div>
+    ${st>=4?`<div class="pop" style="display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:.8rem;align-items:center">
+      ${sql(`Bitmap Heap Scan on accounts
+  (cost=180.2..9014.5 rows=15000 width=36)
+  Recheck Cond: (branch = 'Pune')
+  -&gt;  Bitmap Index Scan ...`)}
+      <p class="lede">The "obvious" index lost, because the planner <b>knew Pune is 30% of the bank</b>.</p></div>`:''}` },
+
+/* ------------------------------ chapter 7 ------------------------------ */
+{ id:'volcano', kick:'the iterator model', eyebrow:'Stage 4 of 4', title:'The Executor',
+  tag:'stage 4', steps:[
+  {note:'The plan is just a tree. Every node in it implements the same tiny interface: open, next and close.'},
+  {note:'It is pull-based. The client asks the root for a row, calls cascade down the tree, and rows bubble up one at a time, pipelined.'},
+  {note:'Consequence one, streaming: the first rows reach the client before the scan finishes. With LIMIT 10, only about ten rows are ever pulled.'},
+  {note:'Consequence two, low memory: most nodes hold one row at a time, so there are no full intermediate result sets.'},
+  {note:'Consequence three, pipeline-breakers: Sort and hash-build must consume their whole input before emitting anything. That is why ORDER BY delays the first row.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneVolcano(st)}</div>
+    <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+      ${st>=2?card('Streaming','First rows arrive early','With <code>LIMIT 10</code>, only about 10 rows are ever pulled.','good','bolt',pp(2,st)):''}
+      ${st>=3?card('Low memory','One row at a time','Most nodes never hold a full intermediate result.','tl','layers',pp(3,st)):''}
+      ${st>=4?card('Pipeline-breakers','Sort and hash-build','They consume the whole input first: why ORDER BY delays the first row.','warn','clock',pp(4,st)):''}
+    </div>` },
+
+{ id:'exectrace', kick:'... ORDER BY balance DESC LIMIT 3', eyebrow:'Full circle', title:'Where MVCC lives',
+  tag:'stage 4', steps:[
+  {note:'Our query with ORDER BY balance DESC LIMIT 3 gives this plan: Limit on top of Sort on top of a sequential scan.'},
+  {note:'The client asks Limit for a row. Limit asks Sort.'},
+  {note:'Sort is a pipeline-breaker, so it calls the scan\'s next repeatedly. The scan reads each heap tuple and applies the filter AND, tying the whole lecture together, the MVCC visibility check via xmin and xmax on every tuple. Kiran\'s deleted row and Arjun\'s uncommitted row are invisible.'},
+  {note:'Sort sorts the four survivors and answers next three times: Nisha, Meera, Rohan. Limit then reports done, and close cascades down the tree.'},
+  {note:'Every next on a scan node runs the xmin/xmax rule from Part 1. The executor is where MVCC physically happens: the two halves of the lecture meet here.'}],
+  body:(st)=>`
+    <div class="stage-row">${sceneExec(Math.min(st,3))}</div>
+    ${st>=4?`<p class="lede pop">Every <code>next()</code> on a scan node runs the <b>xmin/xmax rule from Part 1</b>. The two halves meet here.</p>`:''}` },
+
+{ id:'wrap', kick:'sixty-second replay', eyebrow:'Wrap-up', title:'One query\'s full journey',
+  tag:'recap', steps:[
+  {note:'Replay the running query. One: the raw string becomes a parse tree, grammar only.'},
+  {note:'Two: catalog, permission and view resolution produce a validated query tree.'},
+  {note:'Three: a statistics-driven cost comparison chooses the cheapest plan tree.'},
+  {note:'Four: the executor pulls rows Volcano-style, with MVCC visibility checks at the leaves.'}],
+  body:(st)=>`
+    <div class="stage-row" style="flex:0 0 auto;height:40%">${scenePipe(st+1, true)}</div>
+    <div class="cards" style="grid-template-columns:1fr 1fr;gap:.55rem">
+      ${card('1','Raw string to parse tree','Grammar only.','tl','',pp(0,st))}
+      ${st>=1?card('2','Validated query tree','Catalog, permissions and views resolved.','pp','',pp(1,st)):''}
+      ${st>=2?card('3','Cheapest plan tree','Chosen by statistics-driven cost comparison.','pp','',pp(2,st)):''}
+      ${st>=3?card('4','Rows to the client','Pulled Volcano-style, with MVCC visibility at the leaves.','good','',pp(3,st)):''}
+    </div>` },
+
+{ id:'exit', kick:'before you leave', eyebrow:'Exit ticket', title:'Two questions',
+  tag:'check', steps:[
+  {note:'Question one, as an oral poll: which stage substitutes a view?'},
+  {note:'The Analyzer / Rewriter.'},
+  {note:'Question two: which single command both cleans up dead tuples and refreshes planner statistics?'},
+  {note:'VACUUM ANALYZE.'},
+  {note:'For students who want more: inspect xmin, xmax and ctid themselves, predict a plan by hand, then check it with EXPLAIN. Next lecture: now that we can read a plan, we learn to change the planner\'s mind, with indexing and EXPLAIN ANALYZE.'}],
+  body:(st)=>`
+    <div class="cards" style="grid-template-columns:1fr 1fr;gap:.8rem">
+      ${card('Q1', 'Which stage substitutes a view?', st>=1?'<b class="ans">The Analyzer / Rewriter</b>':'Think, then answer.', 'pp','layers', pp(0,st))}
+      ${st>=2?card('Q2', 'One command that cleans dead tuples and refreshes statistics?', st>=3?'<b class="ans">VACUUM ANALYZE</b>':'Think, then answer.', 'pp','trash', pp(2,st)):''}
+    </div>
+    ${st>=4?`<p class="lede pop"><b>Go further:</b> inspect <code>xmin</code>, <code>xmax</code> and <code>ctid</code>, predict a plan by hand, then check it with <code>EXPLAIN</code>. <b>Next lecture:</b> indexing and <code>EXPLAIN ANALYZE</code>.</p>`:''}` },
+
+{ id:'questions', kick:'MVCC, xmin/xmax, VACUUM and the four-stage pipeline', eyebrow:'Thank you', title:'Any questions?',
+  tag:'close', steps:[
+  {note:'Open the floor for questions.'},
+  {note:'Please fill in the feedback form for this lecture. It shapes the next one, on indexing and EXPLAIN ANALYZE.'}],
+  body:(st)=>`
+    <div class="stage-row"><div class="bigq">?</div></div>
+    ${st>=1?`<div class="cards pop" style="grid-template-columns:1fr">
+      ${card('Two minutes, please','Fill in the feedback form','Your feedback shapes the next lecture, on indexing and EXPLAIN ANALYZE.','pp','users')}</div>`:''}` }
+];
+
+</script>
+<script>
+/* ---- assemble the running order: a chapter opener, then that chapter's slides ---- */
+const BY_ID = Object.fromEntries(DECK.map(d => [d.id, d]));
+const RUN = [];
+CHAPTERS.forEach(ch => {
+  if(OPENERS[ch.n]) RUN.push({
+    id:'ch'+ch.n, chapter:ch, type:'chapter',
+    eyebrow:'Chapter '+ch.n, title:ch.t, kick:OPENERS[ch.n].when, tag:'story',
+    steps:[
+      {note:'Chapter card. Pause here - this is where the story turns. Read the situation, then let them feel the problem before you name the technique.'},
+      {note:OPENERS[ch.n].problem},
+      {note:OPENERS[ch.n].detail},
+      {note:OPENERS[ch.n].next}
+    ],
+    body:(st)=>chapterBody(ch, st)
+  });
+  ch.of.forEach(id => { const d = BY_ID[id]; if(d){ d.chapter = ch; RUN.push(d); } });
+});
+DECK.length = 0;
+RUN.forEach(d => DECK.push(d));
+
+/* ===================== presenter engine ===================== */
+const $ = s => document.querySelector(s);
+const stage = $('#stage');
+let si = 0, pi = 0, lastSlide = null;
+
+function render(){
+  const sl = DECK[si];
+  pi = Math.max(0, Math.min(pi, sl.steps.length - 1));
+  const entering = lastSlide !== sl.id;
+  lastSlide = sl.id;
+  stage.innerHTML = `<div class="slide"${entering?' data-entering="1"':''}>`
+                  + `<div class="fit">${sl.body(pi)}</div></div>`;
+  $('#sTitle').textContent   = sl.title;
+  $('#sEyebrow').textContent = sl.eyebrow;
+  $('#sKick').textContent    = sl.kick || '';
+  railState(sl);
+  $('#stepCount').textContent = `${si+1}/${DECK.length} | step ${pi+1}/${sl.steps.length}`;
+  $('#noteSay').innerHTML = sl.steps[pi].note || '-';
+  $('#noteNxt').textContent = pi+1 < sl.steps.length
+    ? `next: step ${pi+2} of this slide`
+    : (si+1 < DECK.length ? `next: ${DECK[si+1].title}` : 'end of deck');
+  const done = DECK.slice(0, si).reduce((n,d)=>n+d.steps.length, 0) + pi + 1;
+  const all  = DECK.reduce((n,d)=>n+d.steps.length, 0);
+  $('#progFill').style.width = (done/all*100).toFixed(2) + '%';
+  fitSlide();
+}
+
+/* Scale the current step down if it would not fit, so a slide is never
+   scrollable and never clipped. Entrance animations start elements translated,
+   so the first measurement can read short - re-measure once the frame has laid
+   out and again once the longest entrance has finished. */
+let fitTimer = null;
+function fitSlide(){
+  const slide = stage.querySelector('.slide'), fit = stage.querySelector('.fit');
+  if(!slide || !fit) return;
+  const measure = () => {
+    if(!fit.isConnected) return;
+    fit.style.transform = '';
+    /* A centred box splits its overflow above AND below, and scrollHeight only
+       counts what hangs below - so a centred measurement under-reports the true
+       need by about half. This applies at every nesting level, not just the
+       outer column, so flatten them all for the measurement. */
+    fit.classList.add('measuring');
+    const avail = fit.clientHeight;
+    let need = fit.scrollHeight;
+    fit.querySelectorAll('*').forEach(el => {        // catch anything still spilling
+      const h = el.scrollHeight;
+      if(h > need && el.parentElement === fit) need = h;
+    });
+    fit.classList.remove('measuring');
+    if(need > avail + 1){
+      /* Centred content that overflows puts half of itself ABOVE the box, which
+         a top-origin scale cannot pull back. Anchor to the top before scaling. */
+      fit.classList.add('topfit');
+      /* the sketch rotations make visual boxes a few px taller than their
+         layout boxes, which scrollHeight cannot see - leave room for it */
+      const k = Math.max(0.42, (avail - 12) / need);
+      fit.style.transform = `scale(${k.toFixed(4)})`;
+    } else {
+      fit.classList.remove('topfit');
+    }
+  };
+  measure();
+  requestAnimationFrame(measure);
+  clearTimeout(fitTimer);
+  fitTimer = setTimeout(measure, 520);                  // after the last .pop lands
+}
+window.addEventListener('resize', fitSlide);
+if(window.ResizeObserver) new ResizeObserver(fitSlide).observe(document.querySelector('#app'));
+/* the rail is the table of contents: click a chapter to jump to its first slide */
+$('#railNav').innerHTML = CHAPTERS.map(ch =>
+  `<div class="rn" data-ch="${ch.n}">
+     <span class="rn-n">${String(ch.n).padStart(2,'0')}</span>
+     <span class="rn-t">${ch.t}</span></div>`).join('');
+$('#railNav').querySelectorAll('.rn').forEach(el => el.onclick = () => {
+  const n = +el.dataset.ch;
+  const at = DECK.findIndex(d => d.chapter && d.chapter.n === n);
+  if(at >= 0){ si = at; pi = 0; render(); }
+});
+function railState(sl){
+  const cur = sl.chapter ? sl.chapter.n : 0;
+  const nav = $('#railNav');
+  let now = null;
+  nav.querySelectorAll('.rn').forEach(el => {
+    const n = +el.dataset.ch;
+    el.classList.toggle('now',  n === cur);
+    el.classList.toggle('done', n <  cur);
+    if(n === cur) now = el;
+  });
+  // if the list is scrolling, keep the chapter we are in on screen
+  if(railScrolls() && now){
+    now.scrollIntoView({block:'nearest', behavior: REDUCED ? 'auto' : 'smooth'});
+  }
+}
+function railScrolls(){
+  const nav = $('#railNav');
+  const over = nav.scrollHeight > nav.clientHeight + 1;
+  nav.classList.toggle('scrolls', over);
+  return over;
+}
+window.addEventListener('resize', railScrolls);
+
+/* ---- navigation: right / left arrow drive the whole deck ---- */
+function next(){
+  const s = DECK[si];
+  if(pi < s.steps.length-1) pi++;
+  else if(si < DECK.length-1){ si++; pi = 0; }
+  else return;
+  render();
+}
+function prev(){
+  if(pi > 0) pi--;
+  else if(si > 0){ si--; pi = DECK[si].steps.length-1; }
+  else return;
+  render();
+}
+function jump(d){ const n = si+d; if(n<0||n>=DECK.length) return; si=n; pi=0; render(); }
+
+/* ---- presenter zoom: type is a share of screen height, this multiplies it ---- */
+const ZMIN=.6, ZMAX=2.0, ZSTEP=.08;
+let zoom = 1;
+try { zoom = parseFloat(localStorage.getItem('mvcc-zoom')) || 1; } catch(e){}
+function applyZoom(show){
+  zoom = Math.min(ZMAX, Math.max(ZMIN, zoom));
+  document.documentElement.style.setProperty('--scale', zoom.toFixed(3));
+  try { localStorage.setItem('mvcc-zoom', zoom); } catch(e){}
+  if(show){
+    const px = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const z = $('#zoom');
+    z.innerHTML = Math.round(zoom*100) + '%<small>body text about ' + Math.round(px*.72) + 'px | 0 resets</small>';
+    z.classList.add('show');
+    clearTimeout(z._t); z._t = setTimeout(()=>z.classList.remove('show'), 1100);
+  }
+  fitSlide();
+}
+applyZoom(false);
+
+/* ---- theme: light matches the lecture deck, dark reads better in a dim hall ---- */
+function applyTheme(t, show){
+  document.documentElement.setAttribute('data-theme', t);
+  try { localStorage.setItem('mvcc-theme', t); } catch(e){}
+  if(show){
+    const z = $('#zoom');
+    z.innerHTML = (t === 'dark' ? 'Dark' : 'Light') + '<small>press T to switch</small>';
+    z.classList.add('show');
+    clearTimeout(z._t); z._t = setTimeout(()=>z.classList.remove('show'), 900);
+  }
+}
+let theme = 'light';
+try { theme = localStorage.getItem('mvcc-theme') || 'light'; } catch(e){}
+applyTheme(theme, false);
+
+document.addEventListener('keydown', e=>{
+  if($('#ov').classList.contains('open') && !['o','O','Escape'].includes(e.key)) return;
+  switch(e.key){
+    case 'ArrowRight': case ' ': case 'PageDown': e.preventDefault(); next(); break;
+    case 'ArrowLeft':  case 'PageUp':            e.preventDefault(); prev(); break;
+    case 'ArrowDown':  e.preventDefault(); jump(1);  break;
+    case 'ArrowUp':    e.preventDefault(); jump(-1); break;
+    case 'Home': si=0; pi=0; render(); break;
+    case 'End':  si=DECK.length-1; pi=DECK[si].steps.length-1; render(); break;
+    case 'f': case 'F': e.preventDefault(); toggleFull(); break;
+    case 's': case 'S': $('#notes').classList.toggle('open'); break;
+    case 'o': case 'O': $('#ov').classList.toggle('open'); break;
+    case 't': case 'T':
+      theme = theme === 'dark' ? 'light' : 'dark'; applyTheme(theme, true); break;
+    case 'r': case 'R': pi = 0; render(); break;
+    case 'Escape': $('#ov').classList.remove('open'); $('#notes').classList.remove('open'); break;
+    case '+': case '=': e.preventDefault(); zoom += ZSTEP; applyZoom(true); break;
+    case '-': case '_': e.preventDefault(); zoom -= ZSTEP; applyZoom(true); break;
+    case '0': e.preventDefault(); zoom = 1; applyZoom(true); break;
+  }
+});
+stage.addEventListener('click', () => next());
+
+/* ---- full screen: a visible control, since F is only in the footer legend ---- */
+function toggleFull(){
+  document.fullscreenElement ? document.exitFullscreen()
+                             : document.documentElement.requestFullscreen().catch(()=>{});
+}
+$('#btnFull').addEventListener('click', e => { e.stopPropagation(); toggleFull(); });
+document.addEventListener('fullscreenchange', () => {
+  $('#btnFullTxt').textContent = document.fullscreenElement ? 'Exit' : 'Present';
+});
+
+/* ---- run of show ---- */
+$('#ovGrid').innerHTML = DECK.map((s,i)=>
+  `<div class="ovc${s.type==='chapter'?' ovc-ch':''}" data-i="${i}">
+     <div class="i">${s.chapter ? 'CH '+s.chapter.n : ''} | ${s.tag}</div>
+     <div class="t">${s.title}</div></div>`).join('');
+$('#ovGrid').querySelectorAll('.ovc').forEach(el =>
+  el.onclick = () => { si=+el.dataset.i; pi=0; $('#ov').classList.remove('open'); render(); });
+
+/* ---- elapsed timer ---- */
+const t0 = Date.now();
+setInterval(()=>{
+  const s = Math.floor((Date.now()-t0)/1000);
+  $('#clock').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}, 1000);
+
+render();
+</script>
+</body>
+</html>
