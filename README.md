@@ -36,11 +36,11 @@ The whole deck runs on the arrow keys.
 | `V` | replay the narration for this page |
 | `Home` / `End` | first / last slide |
 
-33 slides, 68 pages, 21 cases: sized for an 80-minute class. Notes are written for speaking aloud, one per page, in plain language
+34 slides, 74 pages, 21 cases: sized for an 80-minute class. Notes are written for speaking aloud, one per page, in plain language
 a class 10 student can follow.
 
 The counter in the rail is a **page number that counts right-arrow presses**:
-every step is one page, so it runs from `Page 1 / 68` to `Page 68 / 68`, and
+every step is one page, so it runs from `Page 1 / 74` to `Page 74 / 74`, and
 the run of show (`O`) lists the page each slide starts on.
 
 ## The narrator
@@ -53,8 +53,8 @@ cricket captain's batting order), and ask the class to guess before the answer.
 It plays automatically each time the page changes, and stops the moment you
 move on.
 
-- The voice is **pre-recorded**: `audio/<slide>-<step>.mp3`, 68 clips, about 22
-  minutes in total, 8 MB. It is Microsoft's neural Indian English male voice
+- The voice is **pre-recorded**: `audio/<slide>-<step>.mp3`, 74 clips, about 25
+  minutes in total, 9 MB. It is Microsoft's neural Indian English male voice
   `en-IN-PrabhatNeural`, generated with the free `edge-tts` tool, so it sounds
   like a person rather than a robot. The next page's clip is fetched ahead of
   time, so there is no wait when you move on.
@@ -113,6 +113,25 @@ Part 1 (MVCC) is chapters 2 to 4. Part 2 (query processing) is chapters 5 to 7.
 The two halves meet in case 21, where every `next()` on the scan node runs the
 xmin/xmax visibility rule from Part 1.
 
+## ctid, xmin and xmax, explained
+
+Chapter 3 has an explainer page for the three hidden columns (pages 18-23):
+
+| Column | Meaning | Read it as |
+|--------|---------|-----------|
+| `ctid` | the row version's address in the table, `(page, slot)`; `(0,2)` is page 0, slot 2 | where it lives |
+| `xmin` | the number of the transaction that created this version | born by |
+| `xmax` | the number of the transaction that deleted or replaced it; `0` means nobody has | ended by |
+
+Then one click per command shows the stored versions with the changed value
+highlighted, next to the real `SELECT ctid, xmin, xmax, balance` output:
+INSERT sets `xmin`; UPDATE sets the old version's `xmax` and writes a new version
+at a new `ctid` with a new `xmin`; DELETE only sets `xmax`; ROLLBACK leaves the
+cancelled number on disk but it counts as 0. A cheat-sheet table closes it, with
+the rule that a number in `xmin` or `xmax` only counts if that transaction
+finished. The narrator explains each of these, and the voice on the row-versions,
+stickers and watch-it-work pages now spells out what each value means.
+
 ## Real PostgreSQL in every case
 
 Every case shows the actual commands in a psql window, with the output
@@ -165,7 +184,7 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. All 68 pages were walked at 1280x760 with no script errors,
+it would not fit. All 74 pages were walked at 1280x760 with no script errors,
 no label off the canvas, and no page needing to be scaled down.
 
 ## Checking for overlaps

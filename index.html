@@ -1456,6 +1456,59 @@ function charCells(){
    works through its cases as problem -> see the problem -> solve it.
    ===================================================================== */
 
+/* ---------------- ctid, xmin and xmax, explained ---------------- */
+/* one row version with all three hidden columns; `hi` names the cells that just changed */
+function tup3(x, y, o){
+  const w = 720, h = 62;
+  const fills = {live:'var(--card)', new:'var(--amber-soft)', dead:'var(--flame-soft)', vis:'var(--leaf-soft)'};
+  const cell = (cx, cw, lab, val, on) => `
+    <rect x="${cx}" y="${y+8}" width="${cw}" height="${h-16}" rx="3" fill="${on?'var(--amber)':'var(--paper-2)'}"
+      stroke="var(--ink)" stroke-width="${on?2.6:1.8}" ${on?'class="sv-glow"':''}/>
+    <text x="${cx+cw/2}" y="${y+23}" text-anchor="middle" style="font-size:10px;fill:var(--muted)">${lab}</text>
+    <text class="t-mono" x="${cx+cw/2}" y="${y+h-14}" text-anchor="middle" style="font-size:15px;fill:var(--ink);font-weight:700">${val}</text>`;
+  const hi = o.hi || [];
+  return `<g class="${o.cls||''}">
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${fills[o.st||'live']}" stroke="var(--ink)" stroke-width="2.4"
+      ${o.st==='new'?'stroke-dasharray="8 6"':''}/>
+    ${cell(x+10, 118, 'ctid (address)', o.ctid, hi.includes('ctid'))}
+    <text class="t-mono" x="${x+150}" y="${y+h/2+7}" style="font-size:14px;fill:var(--ink)">${o.data}</text>
+    ${cell(x+w-250, 116, 'xmin (born by)', o.xmin, hi.includes('xmin'))}
+    ${cell(x+w-126, 116, 'xmax (ended by)', o.xmax, hi.includes('xmax'))}
+    ${o.tag?`<text class="t-serif" x="${x+w+16}" y="${y+h/2+8}" style="font-size:18px;fill:${o.tagc||'var(--ink)'}">${o.tag}</text>`:''}
+  </g>`;
+}
+/* the page of the table, as it looks after each command */
+const STICK = [
+  {cmd:'Transaction 500 runs INSERT', say:'A new row is born. xmin = 500 (who made it). xmax = 0 (nobody has ended it).',
+   tu:[{ctid:'(0,1)', data:'(101, Asha, 50000)', xmin:'500', xmax:'0', hi:['ctid','xmin'], st:'live', tag:'alive', tagc:VIS}]},
+  {cmd:'Transaction 802 runs UPDATE (balance = 40000)', say:'The old version gets xmax = 802 (ended by 802). A new version is added at a new address, (0,2), with xmin = 802.',
+   tu:[{ctid:'(0,1)', data:'(101, Asha, 50000)', xmin:'500', xmax:'802', hi:['xmax'], st:'dead', tag:'ended by 802', tagc:INV},
+       {ctid:'(0,2)', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', hi:['ctid','xmin'], st:'new', tag:'alive', tagc:VIS}]},
+  {cmd:'Transaction 910 runs DELETE (not finished yet)', say:'DELETE does not erase anything and adds no new version. It only writes 910 into xmax.',
+   tu:[{ctid:'(0,1)', data:'(101, Asha, 50000)', xmin:'500', xmax:'802', st:'dead', tag:'ended by 802', tagc:INV},
+       {ctid:'(0,2)', data:'(101, Asha, 40000)', xmin:'802', xmax:'910', hi:['xmax'], st:'live', tag:'ending (910 running)', tagc:PEND}]},
+  {cmd:'Transaction 910 is cancelled (ROLLBACK)', say:'xmax still says 910, but 910 was cancelled, so it counts as 0. The row is alive again.',
+   tu:[{ctid:'(0,1)', data:'(101, Asha, 50000)', xmin:'500', xmax:'802', st:'dead', tag:'ended by 802', tagc:INV},
+       {ctid:'(0,2)', data:'(101, Asha, 40000)', xmin:'802', xmax:'910', hi:['xmax'], st:'vis', tag:'alive (910 cancelled)', tagc:VIS}]}
+];
+function sceneStickers(k){
+  const s = STICK[k];
+  let g = `<text class="t-serif" x="20" y="30" style="font-size:19px;fill:var(--pencil-2)">${s.cmd}</text>`;
+  s.tu.forEach((t,i) => g += tup3(20, 48 + i*76, Object.assign({cls:'sv-rise'}, t)));
+  return SV(`0 0 1000 ${48 + s.tu.length*76}`, g);
+}
+/* the three columns, drawn once, big, with a callout under each */
+function sceneStickerParts(){
+  let g = tup3(140, 20, {ctid:'(0,2)', data:'(101, Asha, 40000)', xmin:'802', xmax:'0', hi:['ctid','xmin','xmax']});
+  const call = (x, t1, t2) => `<path d="M${x} 84 V112" stroke="var(--ink)" stroke-width="2.2"/>
+    <text class="t-serif" x="${x}" y="136" text-anchor="middle" style="font-size:18px">${t1}</text>
+    <text x="${x}" y="160" text-anchor="middle" style="font-size:13px;fill:var(--muted)">${t2}</text>`;
+  g += call(209, 'where it lives', 'page 0, slot 2');
+  g += call(669, 'born by', 'transaction 802');
+  g += call(793, 'ended by', '0 = still alive');
+  return SV('0 0 1000 172', g);
+}
+
 /* =====================================================================
    The story spine, kept short and plain for a 90-minute class:
    each chapter card states the requirement, then each case goes
@@ -1464,7 +1517,7 @@ function charCells(){
 const CHAPTERS = [
  {n:1, t:'One table, one story',        of:['title','neobank']},
  {n:2, t:'Readers and writers',          of:['casewait','casesum']},
- {n:3, t:'Keeping two versions',         of:['appendonly','xminxmax','rule','trace']},
+ {n:3, t:'Keeping two versions',         of:['appendonly','xminxmax','stickers','rule','trace']},
  {n:4, t:'Deleting, undoing, cleaning',  of:['delete','rollback','vacuum','bloat','oracle']},
  {n:5, t:'Reading your query',           of:['pipeline','running','parser','analyzer','rewriter']},
  {n:6, t:'Choosing the fastest way',     of:['costphil','stats','scans','joins','decision']},
@@ -1656,6 +1709,38 @@ ${NEW(' ctid  | balance\n-------+---------\n (0,2) |   40000')}      ${CM('-- a 
     return `<div class="stage-row" style="flex:0 0 auto;height:38%">${sceneHeader(1)}</div>`
       + psql('the hidden stickers, asked for by name', `${PR}SELECT xmin, xmax, acc_no, balance FROM accounts;
 ${NEW(' xmin | xmax | acc_no | balance\n------+------+--------+---------\n  500 |    0 |    100 |   72000\n  802 |    0 |    101 |   40000\n  500 |    0 |    102 |   18000')}      ${CM('-- xmin = made by, xmax = replaced by (0 = latest)')}`); } },
+
+{ id:'stickers', kick:'the three hidden columns, in plain words', eyebrow:'Keeping two versions', title:'What ctid, xmin and xmax mean',
+  tag:'explainer', steps:[
+  {note:'Three hidden columns on every row version. ctid is its address in the table: page number and slot number, so (0,2) means page 0, slot 2. xmin is the number of the transaction that created this version. xmax is the number of the transaction that ended it, by UPDATE or DELETE; 0 means nobody has ended it, so it is alive.'},
+  {note:'INSERT. Transaction 500 creates the row. It lands at address (0,1). xmin becomes 500, because 500 made it. xmax is 0, because nobody has ended it.'},
+  {note:'UPDATE. Transaction 802 changes the balance. Two things happen. The old version gets xmax 802: it was ended by 802. And a new version is added at a new address, (0,2), with xmin 802, because 802 made it. That is why the ctid changes after an UPDATE.'},
+  {note:'DELETE. Transaction 910 deletes the row but has not finished. No new version, no new address. Only xmax changes, to 910. Another window can still see the row, with xmax 910, because 910 has not finished.'},
+  {note:'ROLLBACK. Transaction 910 is cancelled. PostgreSQL does not go back and wipe the 910. It leaves it there, but because 910 was cancelled, an xmax of 910 counts as 0. The row is alive again.'},
+  {note:'The cheat sheet. INSERT sets xmin. UPDATE ends the old version with xmax and creates a new one with a new ctid and a new xmin. DELETE only sets xmax. ROLLBACK changes nothing on disk; the cancelled number is simply ignored.'}],
+  body:(st)=>{
+    const q = `${PR}SELECT ctid, xmin, xmax, balance FROM accounts WHERE acc_no = 101;`;
+    const res = (c, mn, mx, b, note) => `${NEW(` ctid  | xmin | xmax | balance\n-------+------+------+---------\n ${c} |  ${mn} |  ${mx.padStart(3)} |   ${b}`)}${note?'      '+CM(note):''}`;
+    if(st===0) return `<div class="stage-row" style="flex:0 0 auto;height:30%">${sceneStickerParts()}</div>
+      <div class="cards" style="grid-template-columns:repeat(3,1fr)">
+        ${card('ctid','Where it lives','The row version\'s address: (page, slot). <b>(0,2)</b> = page 0, slot 2. A new version gets a new address.','tl','db','pop d1')}
+        ${card('xmin','Born by','The number of the transaction that <b>created</b> this version (INSERT or UPDATE).','good','bolt','pop d2')}
+        ${card('xmax','Ended by','The transaction that <b>deleted or replaced</b> it. <b>0</b> = nobody has, so it is still alive.','warn','ban','pop d3')}</div>`;
+    if(st===5) return rowsTable(['Command','ctid','xmin','xmax'],[
+        ['INSERT','new address for the new row','set to my transaction number','0'],
+        ['UPDATE','old version keeps its address; the new version gets a new one','new version: my number','old version: my number; new version: 0'],
+        ['DELETE','no change','no change','set to my number'],
+        ['ROLLBACK','no change','no change','the cancelled number stays, but counts as 0']], 9, '.8fr 1.4fr 1.2fr 1.4fr')
+      + fix('A number in xmin or xmax only counts if that transaction <b>finished</b>. A cancelled number is ignored.');
+    const k = st - 1, s = STICK[k];
+    const psqlBody = [
+      `${PR}INSERT INTO accounts VALUES (101, 'Asha', 50000, 'Pune');      ${CM('-- transaction 500')}\nINSERT 0 1\n${q}\n${res('(0,1)','500','0','50000','-- born by 500, not ended')}`,
+      `${PR}UPDATE accounts SET balance = 40000 WHERE acc_no = 101;      ${CM('-- transaction 802')}\nUPDATE 1\n${q}\n${res('(0,2)','802','0','40000','-- new address, born by 802 (the old one at (0,1) now has xmax 802)')}`,
+      `${PR}BEGIN;\n${PRT}DELETE FROM accounts WHERE acc_no = 101;      ${CM('-- transaction 910, not finished')}\nDELETE 1\n${CM('-- meanwhile, in another window:')}\n${q}\n${res('(0,2)','802','910','40000','-- still visible: 910 has not finished')}`,
+      `${PRT}ROLLBACK;      ${CM('-- cancel transaction 910')}\nROLLBACK\n${q}\n${res('(0,2)','802','910','40000','-- 910 was cancelled, so xmax 910 counts as 0: alive')}`][k];
+    return `<div class="stage-row" style="flex:0 0 auto;height:${k===0?'22%':'36%'}">${sceneStickers(k)}</div>
+      ${fix(s.say)}
+      ${psql('watch the hidden columns', psqlBody)}`; } },
 
 { id:'rule', kick:'piece 3: a rule that picks', eyebrow:'Keeping two versions', title:'Can I see this version?',
   tag:'case', problem:'Each version has two stickers. What exact test decides if a person can see it?',
@@ -1988,18 +2073,25 @@ const NARRATION = {
  appendonly:[
   'Here is the puzzle. Ravi wants to change a number, but Asha still needs the old number for a while. You cannot have both in one box. So where does the old value go?',
   'Look at the picture. If Ravi simply rubs out the old number and writes the new one, the old value is gone forever. Then Asha has only two bad choices: wait, or see something half done. So overwriting is not an option.',
-  'So PostgreSQL does something clever. It never rubs anything out. It writes the new version in a new place, and keeps the old one where it was. Look at the little address in the terminal, it changes from one place to another. That tells you a brand new copy was made. Old copy for Asha, new copy for Ravi.'],
+  'So PostgreSQL does something clever. It never rubs anything out. It writes the new version in a new place, and keeps the old one where it was. Now look at the terminal, at the column called C T I D. C T I D is simply the address of a row inside the table, written as two numbers: the page, and the slot on that page. Zero comma one means page zero, slot one, like a house number on a street. Before the update the row lived at zero comma one. After the update, the balance is at zero comma two. A new address means a brand new copy was made. Old copy for Asha, new copy for Ravi.'],
  xminxmax:[
   'Now we have two copies of the same row. Here is the next problem. How will the database know which copy is old and which is new? They look exactly the same.',
   'See, there is no name tag on them. It is like two identical water bottles in a classroom. Without a name written on them, nobody knows whose is whose.',
-  'So PostgreSQL sticks two small labels on every copy. The first label says who created this copy. The second label says who replaced it, and zero means nobody has replaced it yet, so it is the latest. These labels are hidden, but as you can see in the terminal, you can ask for them and see them.'],
+  'So PostgreSQL sticks two small labels on every copy. First, remember that every change in the database gets a number, called a transaction number, like a token number at a bank counter. The first label is called x min. It stores the token number of the transaction that created this copy, so read it as born by. The second label is called x max. It stores the token number of the transaction that deleted or replaced this copy, so read it as ended by. And if x max is zero, it means nobody has ended it yet, so this copy is still alive. You can see these two hidden columns in the terminal, just by asking for them by name.'],
+ stickers:[
+  'Many of you asked me: sir, what exactly are C T I D, x min and x max? Let us make it crystal clear. Look at this one row. C T I D is its address in the table, the page number and the slot number, like a house address. Zero comma two means page zero, slot two. x min is the token number of the transaction that created this copy, born by. And x max is the token number of the transaction that ended it, ended by. Zero in x max means it is still alive. Three columns, three simple questions: where does it live, who made it, and who ended it.',
+  'Now let us watch these numbers change, one command at a time. First, an insert. Transaction five hundred creates Asha\'s row. It gets the address zero comma one. x min becomes five hundred, because five hundred made it. And x max is zero, because nobody has ended it. Look at the terminal, it shows exactly these three values.',
+  'Next, an update. Transaction eight zero two changes the balance to forty thousand. Watch carefully, two things happen. The old copy gets x max eight zero two, meaning it was ended by eight zero two. And a brand new copy is written at a new address, zero comma two, with x min eight zero two, because eight zero two made it. That is why the C T I D changes after an update. An update is really, end the old copy and create a new one.',
+  'Now a delete. Transaction nine one zero deletes the row, but has not finished yet. See what changes. No new copy, no new address. Only x max changes, to nine one zero. That is all a delete does, it signs the ended by label. And look, another window can still see the row, because nine one zero has not finished.',
+  'And finally, a rollback. Transaction nine one zero is cancelled. Here is the surprise: PostgreSQL does not go back and erase the nine one zero. It leaves it there. But since nine one zero was cancelled, that number simply does not count. So x max nine one zero is treated just like zero, and the row is alive again. Cheap and quick.',
+  'Here is your cheat sheet, write it in your notebook. Insert sets x min. Update ends the old copy by setting its x max, and creates a new copy with a new C T I D and a new x min. Delete only sets x max. And rollback changes nothing on disk, the cancelled number is just ignored. One golden rule: a number in x min or x max only counts if that transaction actually finished.'],
  rule:[
   'Labels are good, but we still need a clear rule. When a person looks at a copy, how do they decide, yes I can see this, or no I cannot?',
   'Let us make it a small game. Look at the table. For this person, some changes were finished and one was still running. Now look at each copy and decide, visible or not. Do not look at the answer yet. Try it with your neighbour.',
   'The rule has only two checks, and both must pass. First, was this copy made by someone who had finished? Second, has it not been replaced by someone who had finished? If both are yes, you can see it. That is the whole secret. The database does this tiny check millions of times every second.'],
  trace:[
   'Now let us put all three pieces together on Asha\'s row. Ravi has made a new copy with forty thousand, but he has not finished yet. What will Asha see?',
-  'Follow the numbers down the middle. First Ravi starts and makes his change. When Asha looks in between, the labels tell her Ravi is not finished, so she gets the old copy, fifty thousand. Then Ravi finishes. Now when Asha looks again, the labels say the new copy is ready, so she sees forty thousand. The labels decided everything. No waiting, no confusion.'],
+  'Follow the numbers down the middle. First, Ravi\'s transaction gets its token number, eight zero two. He changes the balance. When Asha looks in between, she sees x min five hundred and x max eight zero two. Read it like this: this copy was born by five hundred, and eight zero two is trying to end it. But eight zero two has not finished, so for Asha the old copy is still valid, and she sees fifty thousand. Then Ravi commits. Now Asha sees x min eight zero two and x max zero: this copy was born by Ravi\'s change, and nobody has ended it. So she sees forty thousand. Two small numbers told the whole story.'],
  ch4:[
   'So far we only changed values. But real life has more. Sometimes we delete things, sometimes we cancel a change halfway, and all these old copies keep piling up. Who cleans them? This chapter answers all of that, with the same labels we just learned.'],
  delete:[
