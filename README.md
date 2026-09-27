@@ -34,12 +34,12 @@ The whole deck runs on the arrow keys.
 | `+` / `-` / `0` | type size, for the room you are in |
 | `Home` / `End` | first / last slide |
 
-37 slides, 87 pages, 21 cases: sized for a 90-minute class, about one page a
+37 slides, 88 pages, 21 cases: sized for a 90-minute class, about one page a
 minute. Notes are written for speaking aloud, one per page, in plain language
 a class 10 student can follow.
 
 The counter in the rail is a **page number that counts right-arrow presses**:
-every step is one page, so it runs from `Page 1 / 87` to `Page 87 / 87`, and
+every step is one page, so it runs from `Page 1 / 88` to `Page 88 / 88`, and
 the run of show (`O`) lists the page each slide starts on.
 
 ## Structure: requirement first, then cases
@@ -79,7 +79,7 @@ xmin/xmax visibility rule from Part 1.
 | Scene | Motion |
 |-------|--------|
 | Problem scenes | Each case first animates what breaks: an in-place overwrite that destroys 50000, a sum that invents 5,000, a DELETE that makes a count wrong, an undo log copied back row by row, 990,000 index hops, 20 all-pairs join lines, nodes that buffer a million rows |
-| psql terminals | Chapter 2's cases show two psql sessions side by side: Ravi's `BEGIN; UPDATE ...` next to Asha's `SELECT`, which hangs in a lock-only database but returns 50000 at once in PostgreSQL, then 40000 after Ravi's `COMMIT`; and a `SUM(balance)` report printing 100000 while a transfer commits beside it |
+| psql timeline | Chapter 2 shows two psql sessions as one timeline: numbered moments run down the middle, and each line appears in Ravi's or Asha's window in the order it happened (BEGIN, UPDATE, Asha's SELECT, COMMIT, SELECT again). In a lock-only database Asha's SELECT hangs until moment 5; in PostgreSQL it returns 50000 at moment 3 and 40000 after the commit. The report case shows SUM(balance) starting at moment 1, the transfer committing at moments 2-5, and the report still printing 100000 at moment 6 |
 | Locks make readers wait | Ravi's UPDATE reaches the row and locks it; Asha's SELECT stalls at the lock |
 | The core promise | Two versions of the row; Asha's query takes the finished one and returns at once |
 | A report that adds up | A transfer lands mid-count and the total comes out 105,000; with a snapshot it is 100,000 |
@@ -104,7 +104,7 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. All 87 pages were walked at 1280x760 with no script errors,
+it would not fit. All 88 pages were walked at 1280x760 with no script errors,
 no label off the canvas, and no page needing to be scaled down.
 
 ## Design

@@ -538,6 +538,30 @@ text{font-family:var(--hand)}
 .term .wt{color:#F7C948;font-weight:700;animation:blip 1.4s ease-in-out infinite}
 .term.bad{border-color:var(--flame)} .term.bad .term-bar{background:#6B2A1E}
 
+/* ---- two sessions on one timeline: moments numbered down the middle ---- */
+.tl{display:grid;grid-template-columns:minmax(0,1fr) 2.1rem minmax(0,1fr);flex:0 0 auto;row-gap:0}
+.tl-h{display:flex;align-items:center;gap:.28rem;padding:.24rem .55rem;background:#3A342D;color:#E8DFD0;
+  font-family:var(--hand);font-size:.5rem;letter-spacing:.5px;border:2.5px solid var(--ink);border-bottom:0;
+  border-radius:8px 8px 0 0}
+.tl-h i{width:.42rem;height:.42rem;border-radius:50%;background:#E8553A;display:inline-block}
+.tl-h i:nth-child(2){background:#F7C948} .tl-h i:nth-child(3){background:#6FBF73}
+.tl-h span{margin-left:.35rem}
+.tl-h.bad{background:#6B2A1E;border-color:var(--flame)}
+.tl-tm{align-self:end;text-align:center;font-family:var(--hand);font-size:.44rem;letter-spacing:1px;
+  text-transform:uppercase;color:var(--muted);padding-bottom:.15rem}
+.tl-c{background:#1D1A17;border-left:2.5px solid var(--ink);border-right:2.5px solid var(--ink);
+  border-top:1px dashed #4A4136;padding:.28rem .6rem;font-family:var(--mono);font-size:.54rem;line-height:1.4;
+  color:#EDE6D8;white-space:pre-wrap;overflow-wrap:anywhere;overflow:hidden;min-height:1.6rem}
+.tl-c.on{background:#26221D;box-shadow:inset 3px 0 0 #F7C948}
+.tl-c.bad{border-left-color:var(--flame);border-right-color:var(--flame)}
+.tl > .tl-c:nth-last-child(1),.tl > .tl-c:nth-last-child(3){border-bottom:2.5px solid var(--ink);border-radius:0 0 8px 8px}
+.tl-c .pr{color:#8FC7FF;font-weight:700} .tl-c .cm{color:#9E9382} .tl-c .nw{color:#8FD6AE;font-weight:700}
+.tl-c .wt{color:#F7C948;font-weight:700;animation:blip 1.4s ease-in-out infinite}
+.tl-n{display:flex;align-items:flex-start;justify-content:center;padding-top:.3rem;position:relative}
+.tl-n::before{content:'';position:absolute;top:0;bottom:0;left:50%;border-left:2px dashed var(--line)}
+.tl-n b{position:relative;width:1.3rem;height:1.3rem;border-radius:50%;background:var(--amber);border:2px solid var(--ink);
+  display:grid;place-items:center;font-family:var(--hand);font-size:.56rem;color:var(--ink)}
+
 /* ---- Arial throughout: it runs wider than the sketch faces, so sizes are retuned ---- */
 :root{--hand:Arial,Helvetica,sans-serif;--marker:Arial,Helvetica,sans-serif}
 text{font-family:Arial,Helvetica,sans-serif}
@@ -1510,6 +1534,23 @@ ${CM('-- not committed yet')}`;
 const ASHA_Q = `${PR}SELECT balance FROM accounts
 ${PRC}  WHERE acc_no = 101;`;
 
+/* two sessions as one timeline: numbered moments down the middle, and each
+   line sits in the window of whoever typed it, in the order it happened */
+function timeline(titleL, titleR, rows, badR=false){
+  let h = `<div class="tl"><div class="tl-h">${'<i></i><i></i><i></i>'}<span>${titleL}</span></div>
+    <div class="tl-tm">time</div>
+    <div class="tl-h ${badR?'bad':''}">${'<i></i><i></i><i></i>'}<span>${titleR}</span></div>`;
+  rows.forEach(([side, html], i) => {
+    const d = `style="animation-delay:${i*700}ms"`;
+    h += `<div class="tl-c pop ${side==='L'?'on':''}" ${d}>${side==='L'?html:''}</div>
+      <div class="tl-n pop" ${d}><b>${i+1}</b></div>
+      <div class="tl-c pop ${side==='R'?'on':''} ${side==='R'&&badR?'bad':''}" ${d}>${side==='R'?html:''}</div>`;
+  });
+  return h + `</div>`;
+}
+const SEL101 = `${PR}SELECT balance FROM accounts WHERE acc_no = 101;`;
+const RES = (v, note) => `\n${NEW(` balance\n---------\n   ${v}`)}${note?'      '+CM(note):''}`;
+
 const DECK = [
 /* ------------------------------ chapter 1 ------------------------------ */
 { id:'title', kick:'one table, a reader and a writer', eyebrow:'PostgreSQL internals', title:'MVCC & the Query Engine',
@@ -1544,19 +1585,23 @@ const DECK = [
 { id:'casewait', kick:'readers vs. writers', eyebrow:'Readers and writers', title:'Asha should not have to wait',
   tag:'case', problem:'Ravi is halfway through changing Asha\'s balance. Asha checks her balance right now. Does she have to wait?',
   steps:[
-  P('Two psql windows, side by side. On the left, Ravi types BEGIN and an UPDATE that sets account 101 to 40,000, but he has not typed COMMIT. On the right, Asha asks for her balance. What comes back? Should she wait?'),
-  SEE('In a database that uses only locks, Ravi\'s change locks the row, and Asha\'s window just hangs, waiting. She is stuck behind a change that is not even finished. PostgreSQL does not do this; the next click shows what it does.'),
-  SOL('PostgreSQL keeps two versions of the row. Asha\'s SELECT returns 50,000 at once: the last finished value. Then Ravi types COMMIT, Asha runs the same SELECT again, and now sees 40,000. One limit: two people changing the same row still take turns.')],
+  P('Read the numbers down the middle: they are the order things happen in. Moment 1, Ravi types BEGIN. Moment 2, he changes account 101 to 40,000, but does not commit. Moment 3, in her own window, Asha asks for her balance. What comes back? Should she wait?'),
+  SEE('In a database that uses only locks: at moment 3 Asha\'s window just hangs. At moment 4 Ravi commits, and only at moment 5 does Asha finally get an answer. She waited the whole time. PostgreSQL does not do this; the next click shows what it does.'),
+  SOL('The same moments in PostgreSQL. At moment 3 Asha gets 50,000 at once: the last finished value, from the old version. At moment 4 Ravi commits. At moment 5 Asha runs the same query and now sees 40,000. One limit: two people changing the same row still take turns.')],
   body:(st)=>{
-    const ravi = st < 2 ? RAVI_T : RAVI_T + '\n' + NEW(`${PRT}COMMIT;\nCOMMIT`);
-    const asha = st === 0 ? `${ASHA_Q}\n${CM('-- what comes back?')}`
-      : st === 1 ? `${ASHA_Q}\n<span class="wt">... waiting for Ravi's lock</span>`
-      : `${ASHA_Q}\n${NEW(' balance\n---------\n   50000\n(1 row)')}   ${CM('-- instant, no waiting')}\n${ASHA_Q}\n${NEW(' balance\n---------\n   40000\n(1 row)')}   ${CM('-- after Ravi commits')}`;
-    const t = terms(term('psql: Ravi (T1), the writer', ravi),
-                    term(st === 1 ? 'Asha (T2), in a database that locks readers' : 'psql: Asha (T2), the reader', asha, st === 1 ? 'bad' : ''));
-    if(st===0) return problemCard(SLIDE.casewait) + `<div class="stage-row" style="flex:0 0 auto;height:26%">${sceneLock(0)}</div>` + t;
-    if(st===1) return `<div class="stage-row" style="flex:0 0 auto;height:30%">${sceneLock(2)}</div>` + t;
-    return `<div class="stage-row" style="flex:0 0 auto;height:30%">${sceneMvcc(1)}</div>` + t +
+    const begin  = ['L', `${PR}BEGIN;\nBEGIN`];
+    const update = ['L', `${PRT}UPDATE accounts SET balance = 40000 WHERE acc_no = 101;\nUPDATE 1      ${CM('-- not committed yet')}`];
+    const commit = ['L', `${PRT}COMMIT;\nCOMMIT`];
+    const rows = st === 0 ? [begin, update, ['R', `${SEL101}\n${CM('-- what comes back?')}`]]
+      : st === 1 ? [begin, update, ['R', `${SEL101}\n<span class="wt">... waiting for Ravi's lock</span>`], commit,
+                    ['R', `${RES('40000', 'only now, after waiting the whole time')}`.slice(1)]]
+      : [begin, update, ['R', `${SEL101}${RES('50000', 'instant, no waiting')}`], commit,
+         ['R', `${SEL101}${RES('40000', 'Ravi has committed')}`]];
+    const t = timeline('psql: Ravi (T1), the writer',
+                       st === 1 ? 'Asha (T2), in a database that locks readers' : 'psql: Asha (T2), the reader', rows, st === 1);
+    if(st===0) return problemCard(SLIDE.casewait) + t;
+    if(st===1) return `<div class="stage-row" style="flex:0 0 auto;height:21%">${sceneLock(2)}</div>` + t;
+    return t +
       fix('<b>In PostgreSQL, readers never wait for writers.</b> Asha sees 50000 until Ravi commits, then 40000.'); } },
 
 { id:'casesum', kick:'a photo of the data', eyebrow:'Readers and writers', title:'A long report must add up',
@@ -1564,14 +1609,21 @@ const DECK = [
   steps:[
   P('Four accounts, 100,000 rupees in total. A report adds them up slowly. Transfers keep happening while it runs.'),
   SEE('The report reads accounts 1 and 2. Then 5,000 moves from account 1, already counted, to account 4, not counted yet. The report reads account 4 with the extra 5,000. Total: 105,000. It counted the same money twice.'),
-  SOL('The fix: the report works from a photo of the data, taken when it starts. In the terminals, the transfer on the right commits while the report on the left is still reading, but the report still prints 100,000, because account 4\'s old version is kept for it.')],
+  SOL('The fix: the report works from a photo of the data, taken when it starts. Changes after that moment do not count. Account 4\'s old version, 40,000, is still kept, so the report reads that. Total: 100,000. Correct.'),
+  SOL('The same thing in two psql windows. Follow the moments: at 1 the report starts and the photo is taken. At 2 to 5 the transfer runs and commits in the other window. At 6 the report finishes and prints 100,000, because it read account 4 from the photo taken at moment 1.')],
   body:(st)=>{
     if(st===0) return problemCard(SLIDE.casesum) + `<div class="stage-row">${sceneSum(0)}</div>`;
     if(st===1) return `<div class="stage-row">${sceneSum(3)}</div>`;
-    return `<div class="stage-row" style="flex:0 0 auto;height:36%">${sceneSum(4, true)}</div>
-      ${terms(term('psql: the report (T1)', `${PR}SELECT SUM(balance) FROM accounts;\n${NEW('  sum\n--------\n 100000\n(1 row)')}\n${CM('-- one query = one photo of the data')}`),
-              term('psql: the transfer (T2), running meanwhile', `${PR}BEGIN;\n${PRT}UPDATE accounts SET balance = balance - 5000\n${PRCT}  WHERE acc_no = 1;\n${PRT}UPDATE accounts SET balance = balance + 5000\n${PRCT}  WHERE acc_no = 4;\n${PRT}COMMIT;\nCOMMIT`))}
-      ${fix('The report uses a <b>snapshot</b>: a photo of the data taken when it started.')}`; } },
+    if(st===2) return `<div class="stage-row">${sceneSum(4, true)}</div>
+      ${fix('The report uses a <b>snapshot</b>: a photo of the data taken when it started.')}`;
+    return `      ${timeline('psql: the report (T1)', 'psql: the transfer (T2)', [
+        ['L', `${PR}SELECT SUM(balance) FROM accounts;\n${CM('-- starts reading... (the photo is taken now)')}`],
+        ['R', `${PR}BEGIN;\nBEGIN`],
+        ['R', `${PRT}UPDATE accounts SET balance = balance - 5000 WHERE acc_no = 1;\nUPDATE 1`],
+        ['R', `${PRT}UPDATE accounts SET balance = balance + 5000 WHERE acc_no = 4;\nUPDATE 1`],
+        ['R', `${PRT}COMMIT;\nCOMMIT`],
+        ['L', `${NEW('  sum\n--------\n 100000')}      ${CM('-- still correct: it used the photo from moment 1')}`]])}
+      ${fix('The transfer committed in the middle, but the report still printed <b>100,000</b>.')}`; } },
 
 /* ------------------------------ chapter 3 ------------------------------ */
 { id:'appendonly', kick:'piece 1: room for both versions', eyebrow:'Keeping two versions', title:'Where does the old value live?',
