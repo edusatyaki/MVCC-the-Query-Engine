@@ -34,10 +34,12 @@ The whole deck runs on the arrow keys.
 | `+` / `-` / `0` | type size, for the room you are in |
 | `Home` / `End` | first / last slide |
 
-40 slides, 182 steps, 22 cases. Notes are written for speaking aloud, one per step.
+37 slides, 87 pages, 21 cases: sized for a 90-minute class, about one page a
+minute. Notes are written for speaking aloud, one per page, in plain language
+a class 10 student can follow.
 
 The counter in the rail is a **page number that counts right-arrow presses**:
-every step is one page, so it runs from `Page 1 / 182` to `Page 182 / 182`, and
+every step is one page, so it runs from `Page 1 / 87` to `Page 87 / 87`, and
 the run of show (`O`) lists the page each slide starts on.
 
 ## Structure: requirement first, then cases
@@ -45,30 +47,31 @@ the run of show (`O`) lists the page each slide starts on.
 One table runs through the whole lecture: NeoBank's `accounts`, and row 101,
 Asha's account with 50,000 in the Pune branch. Asha reads; Ravi writes.
 
-**Every chapter opens with its requirement.** The chapter card builds in four
-steps: the chapter name, *the requirement* (what the system has to achieve),
-*why it is hard*, and the list of cases the chapter will solve.
+**Every chapter opens with its requirement.** The chapter card takes two
+clicks: first *the requirement* (what the system has to achieve), then *why it
+is hard* together with the list of cases the chapter will solve.
 
-**Every case runs in three phases**, shown as a strip at the top of the slide:
+**Every case is short: one picture per click.** A strip at the top of the slide
+shows the phase:
 
 | Phase | What happens on screen |
 |-------|------------------------|
-| 1. The problem | A problem card states the situation as a question, with the scene set up but nothing solved |
-| 2. See the problem | The failure is animated: the reader stuck at a lock, the report that adds up to 105,000, the row that vanishes mid-count |
-| 3. Solve it (step k of n) | The fix is built visually, one step per click, with the problem kept in view above it |
+| 1. Problem | A problem card asks the question, with the scene set up |
+| 2. See it go wrong | One animation of the failure: the reader stuck at a lock, the report that adds up to 105,000, the row that vanishes mid-count |
+| 3. Fix it | The fix in one picture, with a one-line takeaway |
 
 | Ch | Chapter | The requirement | Cases |
 |----|---------|-----------------|-------|
-| 1 | One table, one story | One shared example every idea can be tested on | (setup) |
-| 2 | Readers and writers | Many readers and writers on the same rows; no dirty reads, no needless waiting | 1-2 |
-| 3 | Row versions | A place for both versions, a label on each, and a rule that picks one | 3-6 |
-| 4 | Deleting, undoing, cleaning | Remove rows, cancel work, and clear old versions without unbounded growth | 7-12 |
-| 5 | From SQL text to a query tree | Check grammar, names, types and permissions, and expand views | 13-15 |
-| 6 | Choosing the cheapest plan | Find the fastest way to 15,000 of 1,000,000 rows without trying them all | 16-20 |
-| 7 | Running the plan | Stream rows early, use little memory, and apply MVCC to every tuple | 21-22 |
+| 1 | One table, one story | One small bank table every idea can be checked on | (setup) |
+| 2 | Readers and writers | Many people read and change the same data at once; nobody sees a half-finished change | 1-2 |
+| 3 | Keeping two versions | Keep the old and new value side by side, and let each person pick the right one | 3-6 |
+| 4 | Deleting, undoing, cleaning | Handle DELETE, cancelling a change, and cleaning up old copies | 7-11 |
+| 5 | Reading your query | Turn typed text into something the database understands, and catch mistakes early | 12-14 |
+| 6 | Choosing the fastest way | Find the fastest way to the answer without trying every way first | 15-19 |
+| 7 | Running the plan | Send rows early, use little memory, show each person only what they should see | 20-21 |
 
 Part 1 (MVCC) is chapters 2 to 4. Part 2 (query processing) is chapters 5 to 7.
-The two halves meet in case 22, where every `next()` on the scan node runs the
+The two halves meet in case 21, where every `next()` on the scan node runs the
 xmin/xmax visibility rule from Part 1.
 
 ## What is animated
@@ -77,16 +80,16 @@ xmin/xmax visibility rule from Part 1.
 |-------|--------|
 | Problem scenes | Each case first animates what breaks: an in-place overwrite that destroys 50000, a sum that invents 5,000, a DELETE that makes a count wrong, an undo log copied back row by row, 990,000 index hops, 20 all-pairs join lines, nodes that buffer a million rows |
 | Locks make readers wait | Ravi's UPDATE reaches the row and locks it; Asha's SELECT stalls at the lock |
-| The core promise | Two versions of the row; Asha's query takes the committed one and returns at once, while a second writer still queues |
-| Long reads | Transfers tick past on a five-minute timeline while the report's snapshot line stays put |
+| The core promise | Two versions of the row; Asha's query takes the finished one and returns at once |
+| A report that adds up | A transfer lands mid-count and the total comes out 105,000; with a snapshot it is 100,000 |
 | Append-only versions | UPDATE expires v1 and appends v2 at a new ctid in the heap page |
 | The rule | A tuple passes Rule 1 and Rule 2, joined by AND, and comes out visible |
-| Tracing xmin / xmax | The heap is redrawn at each XID, with each tuple marked visible, invisible or dead for the current reader, while the event table grows one row per step |
+| Watch it work | The two versions of Asha's row, marked visible or invisible, before and after Ravi finishes |
 | DELETE and ROLLBACK | xmax is stamped instead of the row being erased; an aborted XID leaves v2 invisible forever |
-| VACUUM | Dead slots are pinned by a long report, then swept to free space, then compacted by VACUUM FULL |
+| VACUUM | Dead slots are pinned by a long report, then the rest are swept to free space |
 | Bloat and autovacuum | The heap doubles after the interest job; dead tuples climb to a threshold in a sawtooth that tightens when the scale factor drops |
 | The pipeline | The query rides into each of the four stages as it is named |
-| Parse tree | The tree builds one branch per step |
+| Parse tree | The query's words arranged into a tree by the grammar |
 | Analyzer | The query tree is checked against pg_class, pg_attribute, privileges and views in turn |
 | Rewriter | The view node is replaced by its stored definition |
 | Scan and join methods | A scan head sweeps pages; B-tree hops land on random pages; a bitmap visits pages in order; nested loop probes, hash builds and probes, merge zips |
@@ -100,8 +103,8 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. All 182 steps were walked at 1280x760 with no script errors;
-only one step needs scaling at all, and only to 90%.
+it would not fit. All 87 pages were walked at 1280x760 with no script errors,
+no label off the canvas, and no page needing to be scaled down.
 
 ## Design
 
