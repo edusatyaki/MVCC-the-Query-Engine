@@ -34,11 +34,11 @@ The whole deck runs on the arrow keys.
 | `+` / `-` / `0` | type size, for the room you are in |
 | `Home` / `End` | first / last slide |
 
-37 slides, 96 pages, 21 cases: sized for a 90-minute class. Notes are written for speaking aloud, one per page, in plain language
+34 slides, 70 pages, 21 cases: sized for an 80-minute class. Notes are written for speaking aloud, one per page, in plain language
 a class 10 student can follow.
 
 The counter in the rail is a **page number that counts right-arrow presses**:
-every step is one page, so it runs from `Page 1 / 96` to `Page 96 / 96`, and
+every step is one page, so it runs from `Page 1 / 70` to `Page 70 / 70`, and
 the run of show (`O`) lists the page each slide starts on.
 
 ## Structure: requirement first, then cases
@@ -46,9 +46,9 @@ the run of show (`O`) lists the page each slide starts on.
 One table runs through the whole lecture: NeoBank's `accounts`, and row 101,
 Asha's account with 50,000 in the Pune branch. Asha reads; Ravi writes.
 
-**Every chapter opens with its requirement.** The chapter card takes two
-clicks: first *the requirement* (what the system has to achieve), then *why it
-is hard* together with the list of cases the chapter will solve.
+**Every chapter opens with its requirement.** The chapter card is one page:
+*the requirement* (what the system has to achieve), *why it is hard*, and the
+list of cases the chapter will solve.
 
 **Every case is short: one picture per click.** A strip at the top of the slide
 shows the phase:
@@ -56,8 +56,8 @@ shows the phase:
 | Phase | What happens on screen |
 |-------|------------------------|
 | 1. Problem | A problem card asks the question, with the scene set up |
-| 2. See it go wrong | One animation of the failure: the reader stuck at a lock, the report that adds up to 105,000, the row that vanishes mid-count |
-| 3. Fix it | The fix in one picture, with a one-line takeaway |
+| 2. See it go wrong | One animation of the failure: the reader stuck at a lock, the report that adds up to 105,000, the row that vanishes mid-count (skipped when the problem card already shows it) |
+| 3. Fix it | The fix as a picture plus the real psql commands, with a one-line takeaway |
 
 | Ch | Chapter | The requirement | Cases |
 |----|---------|-----------------|-------|
@@ -82,16 +82,14 @@ PostgreSQL prints, next to the picture, so the idea is tied to code:
 |------|---------------------------|
 | Row versions | `SELECT ctid, balance ...` before and after an `UPDATE`: the address changes |
 | Stickers | `SELECT xmin, xmax, acc_no, balance FROM accounts` |
-| The rule | `pageinspect`: `heap_page_items(get_raw_page('accounts', 0))` shows both versions; `SELECT` returns one |
 | Watch it work | Two sessions on one timeline with `txid_current()`, `UPDATE`, `COMMIT` and `xmin/xmax` |
 | DELETE | A `REPEATABLE READ` report still counts 3 after another session's `DELETE` |
 | ROLLBACK | `BEGIN; UPDATE ...; ROLLBACK;` and the old balance is back at once |
 | VACUUM | `n_dead_tup` from `pg_stat_user_tables` before and after `VACUUM` |
 | Bloat | `pg_relation_size` from 94 MB to 188 MB after `UPDATE accounts SET balance = balance * 1.01`; `autovacuum_vacuum_scale_factor`; `VACUUM ANALYZE` |
-| Oracle | `n_dead_tup` in psql beside `ORA-01555: snapshot too old` in SQL*Plus |
 | Parser / analyzer | The real error messages: syntax error at "FORM", relation does not exist, `text > integer`, permission denied |
 | Views | `EXPLAIN SELECT ... FROM pune_hnw` reads `accounts` |
-| Planner | `EXPLAIN` for Seq Scan, Index Scan, Bitmap Heap Scan, the three joins and the winning plan; `pg_class` and `pg_stats` for statistics |
+| Planner | `CREATE INDEX`; `EXPLAIN` for Seq Scan, Index Scan, Bitmap Heap Scan, the hash join and the winning plan; `pg_stats` for statistics |
 | Executor | The `EXPLAIN` stack (Limit, Sort, Scan) and the final three rows |
 
 The outputs are written to match the lecture's NeoBank numbers (1,000,000
@@ -127,7 +125,7 @@ emitted and entrances resolve instantly.
 ## Nothing off the page
 
 A slide clips rather than scrolls, and an inner wrapper scales the step down if
-it would not fit. All 96 pages were walked at 1280x760 with no script errors,
+it would not fit. All 70 pages were walked at 1280x760 with no script errors,
 no label off the canvas, and no page needing to be scaled down.
 
 ## Checking for overlaps
@@ -139,7 +137,9 @@ terminals), text over a picture, and text cut off inside its box. Open the deck,
 paste the file into the browser console, and an empty list means all clear.
 
 It came back empty at 1024x768, 1280x760, 1366x640, 1440x900, 1920x1080 and the
-narrow 820px layout, and at 130% and 150% text size.
+narrow 820px layout, and at 130% and 150% text size. At normal text size no page
+needs to be scaled down; at 130% and above the busiest pages (the psql
+timelines) are scaled to fit by the deck's auto-fit, never cut off.
 
 ## Design
 
