@@ -45,23 +45,37 @@ the run of show (`O`) lists the page each slide starts on.
 
 ## The narrator
 
-Every page has a spoken explanation, written like a friendly teacher with a few
-jokes, in words a class 10 student can follow. It plays automatically each time
-the page changes, and stops the moment you move on.
+Every page has a spoken explanation, written like a friendly Indian teacher with
+a few jokes, in words a class 10 student can follow. It plays automatically each
+time the page changes, and stops the moment you move on.
 
-- It uses the browser's built-in speech voice (the Web Speech API), so there are
-  no audio files and it works offline. It prefers an Indian English voice (for
-  example Rishi on a Mac, Heera or Ravi on Windows) and falls back to any
-  English voice.
+- The voice is **pre-recorded**: `audio/<slide>-<step>.mp3`, 68 clips, about 21
+  minutes in total, 8 MB. It is Microsoft's neural Indian English male voice
+  `en-IN-PrabhatNeural`, generated with the free `edge-tts` tool, so it sounds
+  like a person rather than a robot. The next page's clip is fetched ahead of
+  time, so there is no wait when you move on.
+- If a clip cannot be played, the browser's own speech voice reads the same
+  words instead, so the deck never goes silent.
 - Browsers only allow sound after the first click or key press, so the narrator
   starts from your first interaction. The button reads *Voice: click to start*
   until then.
 - **Mute** with the Voice button or `M`; the choice is remembered. `V` replays
-  the current page. The button pulses while the narrator is talking.
+  the current page. The button pulses while the teacher is talking.
 - The scripts live in `NARRATION` inside `index.html`, one entry per step,
   keyed by slide id. Technical words are spelled the way they should be spoken
   (`P S Q L`, `x min`, `C T I D`). Speaker notes (`S`) stay separate, for the
   presenter.
+
+### Re-recording after an edit
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install edge-tts
+.venv/bin/python tools/gen_audio.py              # every clip
+.venv/bin/python tools/gen_audio.py casewait     # only the slides you name
+```
+
+The script reads `NARRATION` out of `index.html` (it needs `node`), sends each
+line to Microsoft's speech service and writes the MP3s into `audio/`.
 
 ## Structure: requirement first, then cases
 

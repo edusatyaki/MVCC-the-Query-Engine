@@ -2070,26 +2070,33 @@ const NARRATION = {
 };
 
 /* =====================================================================
-   The narrator: the browser's own speech voice reads NARRATION aloud
-   each time the page changes. No audio files, works offline.
+   The narrator: a pre-recorded Indian English teacher's voice
+   (Microsoft neural voice en-IN-PrabhatNeural, generated from NARRATION
+   by gen_audio.py into audio/<slide>-<step>.mp3). It plays each time the
+   page changes. If a clip cannot be played, the browser's own speech
+   voice reads the same words instead.
 
-   Browsers only allow speech after the viewer has clicked or pressed a
+   Browsers only allow sound after the viewer has clicked or pressed a
    key, so the voice starts from the first interaction.
    M (or the Voice button) mutes and unmutes; V replays the current page.
    ===================================================================== */
-const VOICE = { ok: 'speechSynthesis' in window, on: true, started: false, voice: null };
+const VOICE = { on: true, started: false, tts: 'speechSynthesis' in window, ttsVoice: null };
 try { VOICE.on = localStorage.getItem('mvcc-voice') !== 'off'; } catch(e){}
 
-/* prefer an Indian English voice, then any English one */
-function pickVoice(){
-  if(!VOICE.ok) return;
+const clipFor = (sl, st) => `audio/${sl.id}-${st}.mp3`;
+const player  = new Audio();   player.preload = 'auto';
+const warm    = new Audio();   warm.preload   = 'auto';   // fetches the next page's clip ahead of time
+
+/* backup voice: prefer an Indian English one */
+function pickTtsVoice(){
+  if(!VOICE.tts) return;
   const vs = speechSynthesis.getVoices();
   for(const want of ['en-IN', 'en-GB', 'en-US', 'en']){
     const v = vs.find(v => (v.lang || '').replace('_', '-').startsWith(want));
-    if(v){ VOICE.voice = v; return; }
+    if(v){ VOICE.ttsVoice = v; return; }
   }
 }
-if(VOICE.ok){ pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+if(VOICE.tts){ pickTtsVoice(); speechSynthesis.onvoiceschanged = pickTtsVoice; }
 
 function sayText(sl, st){
   return (NARRATION[sl.id] && NARRATION[sl.id][st]) || (sl.steps[st] && sl.steps[st].note) || '';
@@ -2098,7 +2105,6 @@ function sayText(sl, st){
 function voiceUI(speaking){
   const b = document.getElementById('btnVoice');
   if(!b) return;
-  if(!VOICE.ok){ b.hidden = true; return; }
   b.classList.toggle('muted', !VOICE.on);
   b.classList.toggle('speaking', !!speaking && VOICE.on);
   b.setAttribute('aria-pressed', String(!VOICE.on));
@@ -2106,24 +2112,48 @@ function voiceUI(speaking){
     !VOICE.on ? 'Muted' : (VOICE.started ? 'Voice on' : 'Voice: click to start');
 }
 
-/* long utterances get cut off in some browsers, so speak one sentence at a time */
-function narrate(sl, st){
-  if(!VOICE.ok) return;
+function stopVoice(){
+  player.pause();
+  if(VOICE.tts) speechSynthesis.cancel();
+}
+
+/* the backup: browser speech, one sentence at a time (long utterances get cut off) */
+function speakFallback(sl, st){
+  if(!VOICE.tts || !VOICE.on) return;
   speechSynthesis.cancel();
-  voiceUI(false);
-  if(!VOICE.on || !VOICE.started) return;
   const parts = (sayText(sl, st).match(/[^.!?]+[.!?]*/g) || []).map(p => p.trim()).filter(Boolean);
   parts.forEach((p, i) => {
     const u = new SpeechSynthesisUtterance(p);
-    if(VOICE.voice){ u.voice = VOICE.voice; u.lang = VOICE.voice.lang; } else u.lang = 'en-IN';
-    u.rate = 1; u.pitch = 1.05;
+    if(VOICE.ttsVoice){ u.voice = VOICE.ttsVoice; u.lang = VOICE.ttsVoice.lang; } else u.lang = 'en-IN';
     if(i === 0) u.onstart = () => voiceUI(true);
     if(i === parts.length - 1){ u.onend = () => voiceUI(false); u.onerror = () => voiceUI(false); }
     speechSynthesis.speak(u);
   });
 }
 
-/* the Voice button: if this click is what unlocked speech, start reading
+function nextClip(){
+  const s = DECK[si];
+  if(pi + 1 < s.steps.length) return clipFor(s, pi + 1);
+  return si + 1 < DECK.length ? clipFor(DECK[si + 1], 0) : null;
+}
+
+function narrate(sl, st){
+  stopVoice();
+  voiceUI(false);
+  if(!VOICE.on || !VOICE.started) return;
+  const src = clipFor(sl, st);
+  const mine = () => player.getAttribute('src') === src;     // ignore events from a clip we already left
+  player.onplaying = () => { if(mine()) voiceUI(true); };
+  player.onended   = () => { if(mine()) voiceUI(false); };
+  player.onerror   = () => { if(mine()) speakFallback(sl, st); };
+  player.setAttribute('src', src);
+  const p = player.play();
+  if(p) p.catch(e => { if(e.name !== 'AbortError' && mine()) speakFallback(sl, st); });
+  const n = nextClip();
+  if(n) warm.setAttribute('src', n);
+}
+
+/* the Voice button: if this click is what unlocked sound, start playing
    rather than muting straight away */
 function voiceClick(){
   if(VOICE.unlockedByButton){ VOICE.unlockedByButton = false; if(VOICE.on){ narrate(DECK[si], pi); return; } }
@@ -2134,13 +2164,13 @@ function toggleVoice(){
   VOICE.on = !VOICE.on;
   try { localStorage.setItem('mvcc-voice', VOICE.on ? 'on' : 'off'); } catch(e){}
   VOICE.started = true;
-  if(VOICE.on) narrate(DECK[si], pi); else { speechSynthesis.cancel(); voiceUI(false); }
+  if(VOICE.on) narrate(DECK[si], pi); else { stopVoice(); voiceUI(false); }
 }
 
-/* the first click or key press unlocks speech; a click on the page itself
-   (not a navigation key) also reads the page that is already showing */
+/* the first click or key press unlocks sound; a click that is not a
+   navigation also plays the page that is already showing */
 ['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, e => {
-  if(VOICE.started || !VOICE.ok) return;
+  if(VOICE.started) return;
   VOICE.started = true;
   voiceUI(false);
   const nav = e.type === 'keydown' && ['ArrowRight','ArrowLeft','ArrowUp','ArrowDown',' ','PageDown','PageUp','Home','End','m','M','v','V'].includes(e.key);
@@ -2149,7 +2179,7 @@ function toggleVoice(){
   if(onVoice) VOICE.unlockedByButton = true;
   else if(!nav && !onStage) setTimeout(() => narrate(DECK[si], pi), 0);
 }, { capture: true }));
-window.addEventListener('beforeunload', () => { if(VOICE.ok) speechSynthesis.cancel(); });
+window.addEventListener('beforeunload', stopVoice);
 
 </script>
 <script>
